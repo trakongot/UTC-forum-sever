@@ -1,13 +1,19 @@
 import Post from "../models/postModel.js";
 import User from "../models/userModel.js";
 import { v2 as cloudinary } from "cloudinary";
+import { Filter } from 'bad-words';
 
+const filterBadWords = (text) => {
+	const filter = new Filter();
+	return filter.clean(text);
+};
 const createPost = async (req, res) => {
 	try {
 		const { postedBy, text } = req.body;
+		const cleanText = filterBadWords(text);
 		let { img } = req.body;
 
-		if (!postedBy || !text) {
+		if (!postedBy || !cleanText) {
 			return res.status(400).json({ error: "Postedby and text fields are required" });
 		}
 
@@ -21,7 +27,7 @@ const createPost = async (req, res) => {
 		}
 
 		const maxLength = 500;
-		if (text.length > maxLength) {
+		if (cleanText.length > maxLength) {
 			return res.status(400).json({ error: `Text must be less than ${maxLength} characters` });
 		}
 
@@ -30,7 +36,7 @@ const createPost = async (req, res) => {
 			img = uploadedResponse.secure_url;
 		}
 
-		const newPost = new Post({ postedBy, text, img });
+		const newPost = new Post({ postedBy, cleanText, img });
 		await newPost.save();
 
 		res.status(201).json(newPost);
