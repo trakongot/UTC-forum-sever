@@ -4,7 +4,7 @@ const postSchema = mongoose.Schema(
 	{
 		postedBy: {
 			type: mongoose.Schema.Types.ObjectId,
-			ref: "User",
+			ref: "Users",
 			required: true,
 		},
 		text: {
@@ -15,16 +15,15 @@ const postSchema = mongoose.Schema(
 			type: String,
 		},
 		likes: {
-			// array of user ids
 			type: [mongoose.Schema.Types.ObjectId],
-			ref: "User",
+			ref: "Users",
 			default: [],
 		},
 		replies: [
 			{
 				userId: {
 					type: mongoose.Schema.Types.ObjectId,
-					ref: "User",
+					ref: "Users",
 					required: true,
 				},
 				text: {
@@ -45,6 +44,6 @@ const postSchema = mongoose.Schema(
 	}
 );
 
-const Post = mongoose.model("Post", postSchema);
+const Post = mongoose.models.Post || mongoose.model("Posts", postSchema);
 
 export default Post;

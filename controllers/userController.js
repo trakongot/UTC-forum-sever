@@ -33,6 +33,7 @@ const getUserProfile = async (req, res) => {
 const signupUser = async (req, res) => {
 	try {
 		const { name, email, username, password } = req.body;
+		console.log("Request Body:", req.body); // Ghi log yêu cầu
 		const user = await User.findOne({ $or: [{ email }, { username }] });
 
 		if (user) {

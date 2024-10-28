@@ -37,9 +37,31 @@ const userSchema = mongoose.Schema(
 			type: String,
 			default: "",
 		},
-		isFrozen: {
+		saves: [{
+			type: mongoose.Schema.Types.ObjectId,
+			ref: "Thread",
+		}],
+		reposts: [{
+			type: mongoose.Schema.Types.ObjectId,
+			ref: "Thread",
+		}],
+		blockedUsers: [{
+			type: mongoose.Schema.Types.ObjectId,
+			ref: "User",
+			default: [],
+		}],
+		onboarded: {
 			type: Boolean,
 			default: false,
+		}
+		,
+		accountStatus: {
+			type: String, // "active", "temporary_ban", "permanent_ban"
+			default: "active",
+			enum: ["active", "temporary_ban", "permanent_ban"],
+		},
+		banExpiration: {
+			type: Date,
 		},
 	},
 	{
@@ -47,6 +69,6 @@ const userSchema = mongoose.Schema(
 	}
 );
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model("Users", userSchema);
 
 export default User;

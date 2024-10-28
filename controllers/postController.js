@@ -15,12 +15,12 @@ const createPost = async (req, res) => {
 		if (!user) {
 			return res.status(404).json({ error: "User not found" });
 		}
-
 		if (user._id.toString() !== req.user._id.toString()) {
 			return res.status(401).json({ error: "Unauthorized to create post" });
 		}
 
 		const maxLength = 500;
+
 		if (text.length > maxLength) {
 			return res.status(400).json({ error: `Text must be less than ${maxLength} characters` });
 		}
@@ -53,6 +53,7 @@ const getPost = async (req, res) => {
 		res.status(500).json({ error: err.message });
 	}
 };
+
 
 const deletePost = async (req, res) => {
 	try {
