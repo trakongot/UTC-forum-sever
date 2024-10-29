@@ -55,6 +55,12 @@ const userSchema = mongoose.Schema(
 			default: false,
 		}
 		,
+		viewedThreads: [
+			{
+				type: mongoose.Schema.Types.ObjectId,
+				ref: "Thread",
+			}
+		],
 		accountStatus: {
 			type: String, // "active", "temporary_ban", "permanent_ban"
 			default: "active",
@@ -69,6 +75,6 @@ const userSchema = mongoose.Schema(
 	}
 );
 
-const User = mongoose.model("Users", userSchema);
+const User = mongoose.model("User", userSchema);
 
 export default User;

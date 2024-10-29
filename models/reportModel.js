@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const reportSchema = new mongoose.Schema({
     reportedBy: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Users",
+        ref: "User",
         required: true,
     },
     content: {
@@ -29,6 +29,6 @@ const reportSchema = new mongoose.Schema({
     },
 });
 
-const Report = mongoose.models.Report || mongoose.model("Reports", reportSchema);
+const Report = mongoose.models.Report || mongoose.model("Report", reportSchema);
 
 export default Report;

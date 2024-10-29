@@ -10,21 +10,16 @@ const threadSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    author: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Users",
-        required: true,
-    },
     community: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Communitys",
+        ref: "Community",
     },
     img: {
         type: String,
     },
     likes: {
         type: [mongoose.Schema.Types.ObjectId],
-        ref: "Users",
+        ref: "User",
         default: [],
     },
     commentCount: {
@@ -49,11 +44,11 @@ const threadSchema = new mongoose.Schema({
     children: [
         {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "Threads",
+            ref: "Thread",
         },
     ],
 });
 
-const Thread = mongoose.models.Thread || mongoose.model("Threads", threadSchema);
+const Thread = mongoose.models.Thread || mongoose.model("Thread", threadSchema);
 
 export default Thread;

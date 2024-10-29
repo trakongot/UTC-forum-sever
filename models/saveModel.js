@@ -8,7 +8,7 @@ const saveSchema = new mongoose.Schema({
     },
     thread: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Threads",
+        ref: "Thread",
         required: true,
     },
     savedAt: {
@@ -21,6 +21,6 @@ const saveSchema = new mongoose.Schema({
         default: [],
     },
 });
-const Save = mongoose.models.Save || mongoose.model("Saves", saveSchema);
+const Save = mongoose.models.Save || mongoose.model("Save", saveSchema);
 
 export default Save;

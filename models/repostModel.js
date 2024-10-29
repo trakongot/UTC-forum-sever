@@ -3,12 +3,12 @@ import mongoose from "mongoose";
 const repostSchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Users",
+        ref: "User",
         required: true,
     },
     thread: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Threads",
+        ref: "Thread",
         required: true,
     },
     repostedAt: {
@@ -37,7 +37,7 @@ const repostSchema = new mongoose.Schema({
 });
 
 
-const Repost = mongoose.models.Repost || mongoose.model("Reposts", repostSchema);
+const Repost = mongoose.models.Repost || mongoose.model("Repost", repostSchema);
 
 export default Repost;
 
