@@ -15,10 +15,6 @@ const notificationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         refPath: "contentType",
     },
-    contentType: {
-        type: String,
-        enum: ["Thread", "Comment"],
-    },
     createdAt: {
         type: Date,
         default: Date.now,

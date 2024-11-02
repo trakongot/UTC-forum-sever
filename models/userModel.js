@@ -53,8 +53,7 @@ const userSchema = mongoose.Schema(
 		onboarded: {
 			type: Boolean,
 			default: false,
-		}
-		,
+		},
 		viewedThreads: [
 			{
 				type: mongoose.Schema.Types.ObjectId,
@@ -71,7 +70,7 @@ const userSchema = mongoose.Schema(
 		},
 		role: {
 			type: String,
-			enum: ["user", "moderator", "admin"], 
+			enum: ["user", "moderator", "super_admin"],
 			default: "user",
 		},
 	},

@@ -35,7 +35,7 @@ app.use(cookieParser());
 app.use("/api/users", userRoutes);
 // app.use("/api/posts", postRoutes);
 app.use("/api/messages", messageRoutes);
-app.use("/api/theards", theardRoutes);
+app.use("/api/threads", theardRoutes);
 
 // http://localhost:5000 => backend, frontend
 

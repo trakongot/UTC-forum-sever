@@ -1,21 +1,25 @@
 import express from "express";
 import {
-    createThread,
     getThreads,
     getThreadById,
     deleteThread,
     likeUnlikeThread,
-    replyToThread,
+    hideThread,
+    getLikes,
+    createOrReplyThread,
 } from "../controllers/threadController.js";
 import protectRoute from "../middlewares/protectRoute.js";
 
 const router = express.Router();
 
-router.get("/", protectRoute, getThreads);
-router.get("/:id", protectRoute, getThreadById);
-router.post("/", protectRoute, createThread);
+router.get("/", getThreads);
+router.get("/:id", getThreadById);
+router.post("/", protectRoute, createOrReplyThread);
+router.post("/reply/:parentId", protectRoute, createOrReplyThread)
 router.delete("/:id", protectRoute, deleteThread);
 router.put("/like/:id", protectRoute, likeUnlikeThread);
-router.put("/reply/:id", protectRoute, replyToThread);
+router.put("/hide/:id", protectRoute, hideThread);
+router.get("/:id/likes", protectRoute, getLikes);
+
 
 export default router;

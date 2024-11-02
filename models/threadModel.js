@@ -3,16 +3,12 @@ import mongoose from "mongoose";
 const threadSchema = new mongoose.Schema({
     postedBy: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Users",
+        ref: "User",
         required: true,
     },
     text: {
         type: String,
         required: true,
-    },
-    community: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Community",
     },
     img: {
         type: String,
@@ -21,6 +17,10 @@ const threadSchema = new mongoose.Schema({
         type: [mongoose.Schema.Types.ObjectId],
         ref: "User",
         default: [],
+    },
+    likeCount: {
+        type: Number,
+        default: 0
     },
     commentCount: {
         type: Number,
@@ -47,6 +47,10 @@ const threadSchema = new mongoose.Schema({
             ref: "Thread",
         },
     ],
+    isHidden: {
+        type: Boolean,
+        default: false,
+    }
 });
 
 const Thread = mongoose.models.Thread || mongoose.model("Thread", threadSchema);
