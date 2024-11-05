@@ -327,6 +327,35 @@ const shareThread = async (req, res) => {
     }
 };
 
+const saveThread = async (req, res) => {
+    try {
+        const threadId = req.body.threadId;
+        const userId = req.user._id;
+        const originalThread = await Thread.findById(threadId);
+        if (!originalThread) {
+            return res.status(404).json({ error: "Thread not found" });
+        }
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        const isSaved = user.saves.includes(threadId);
+        if (isSaved) {
+            user.saves = user.saves.filter(id => id.toString() !== threadId);
+            await user.save();
+            return res.status(200).json({ success: true, message: "Thread unsaved successfully" });
+        } else {
+            user.saves.push(threadId);
+            await user.save();
+            return res.status(200).json({ success: true, message: "Thread saved successfully" });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
+
 export {
     getThreads,
     getThreadById,
@@ -336,5 +365,6 @@ export {
     getCommunityThreads,
     hideThread,
     getLikes,
-    shareThread
+    shareThread,
+    saveThread
 };
