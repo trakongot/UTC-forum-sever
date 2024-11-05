@@ -6,7 +6,7 @@ import cookieParser from "cookie-parser";
 import userRoutes from "./routes/userRoutes.js";
 import postRoutes from "./routes/postRoutes.js";
 import theardRoutes from "./routes/threadRoutes.js";
-
+import adminRoutes from "./routes/adminRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import { v2 as cloudinary } from "cloudinary";
 import { app, server } from "./socket/socket.js";
@@ -36,6 +36,8 @@ app.use("/api/users", userRoutes);
 // app.use("/api/posts", postRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/threads", theardRoutes);
+app.use("/api/admins", adminRoutes);
+
 
 // http://localhost:5000 => backend, frontend
 
