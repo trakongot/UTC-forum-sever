@@ -8,6 +8,7 @@ import {
     getLikes,
     createOrReplyThread,
     saveThread,
+    repostThread,
 } from "../controllers/threadController.js";
 import protectRoute from "../middlewares/protectRoute.js";
 
@@ -22,6 +23,7 @@ router.put("/like/:id", protectRoute, likeUnlikeThread);
 router.put("/hide/:id", protectRoute, hideThread);
 router.get("/:id/likes", protectRoute, getLikes);
 router.post("/save", protectRoute, saveThread);
+router.put("/repost", protectRoute, repostThread);
 
 
 

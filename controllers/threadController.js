@@ -355,6 +355,26 @@ const saveThread = async (req, res) => {
     }
 };
 
+const repostThread = async (req, res) => {
+    try {
+        const userId = req.user._id
+        const { id: threadId } = req.body;
+        const user = await User.findById(userId)
+        const thread = await thread.updateOne(
+            threadId,
+            { $inc: { repostCount: 1 } });
+        if (!thread) {
+            return res.status(404).json({ error: "Thread not found" });
+        }
+        await user.updateOne(
+            userId,
+            { $push: { reposts: threadId } });
+        res.status(200).json({ success: true, message: "Thread repost successfully", repostCount: thread.repostCount });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
 
 export {
     getThreads,
@@ -366,5 +386,6 @@ export {
     hideThread,
     getLikes,
     shareThread,
-    saveThread
+    saveThread,
+    repostThread,
 };
