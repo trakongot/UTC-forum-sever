@@ -19,5 +19,12 @@ const protectRoute = async (req, res, next) => {
 		console.log("Error in signupUser: ", err.message);
 	}
 };
+const adminProtectRoute = (req, res, next) => {
+    if (req.user && req.user.role === "super_admin") {
+        next(); // Cho phép tiếp tục nếu vai trò là admin
+    } else {
+        res.status(403).json({ message: "Forbidden: Requires admin role" });
+    }
+};
 
-export default protectRoute;
+export  {protectRoute , adminProtectRoute };

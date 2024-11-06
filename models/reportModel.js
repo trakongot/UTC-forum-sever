@@ -12,7 +12,7 @@ const reportSchema = new mongoose.Schema({
     },
     contentType: {
         type: String,
-        enum: ["Thread", "Comment", "System", "Account"],
+        enum: ["Comment",  "User"],
     },
     reason: {
         type: String,

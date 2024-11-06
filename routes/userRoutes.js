@@ -9,7 +9,7 @@ import {
 	getSuggestedUsers,
 	freezeAccount,
 } from "../controllers/userController.js";
-import protectRoute from "../middlewares/protectRoute.js";
+import { protectRoute, adminProtectRoute } from "../middlewares/protectRoute.js";
 
 
 

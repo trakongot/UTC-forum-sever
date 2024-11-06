@@ -4,24 +4,35 @@ import {
     toggleUserBlock,
     deleteUser,
     updateUserRole,
+    getUserById ,
+    searchUsers
 } from "../controllers/adminUserMangementController.js";
-import protectRoute from "../middlewares/protectRoute.js";
+
+
+import {
+    getAllThreads,
+    deleteThread,
+    toggleThreadVisibility,
+    searchThreads,
+} from "../controllers/adminThreadsManagementController.js";
+import { protectRoute, adminProtectRoute } from "../middlewares/protectRoute.js";
+
 const router = express.Router();
 
 
 
 
-// Lấy tất cả người dùng
-router.get("/users", getAllUsers);
+router.get("/users",protectRoute , adminProtectRoute ,   getAllUsers);
+router.put("/users/block/:id",protectRoute, adminProtectRoute , toggleUserBlock);
+router.delete("/users/delete/:id", protectRoute, adminProtectRoute , deleteUser);
+router.get("/users/get/:id", protectRoute, adminProtectRoute ,getUserById);
+router.put("/users/role/:id", protectRoute, adminProtectRoute ,updateUserRole);
+router.get("/users/search", protectRoute, adminProtectRoute ,searchUsers) ;
 
-// Khóa hoặc mở khóa người dùng
-router.put("/users/block/:id", toggleUserBlock);
 
-// Xóa người dùng
-router.delete("/users/:id", deleteUser);
-
-// Cập nhật vai trò của người dùng
-router.put("/users/role/:id", updateUserRole);
-
+router.get("/threads",protectRoute , adminProtectRoute ,   getAllThreads);
+router.put("/threads/block/:id",protectRoute, adminProtectRoute , toggleThreadVisibility);
+router.delete("/threads/delete/:id", protectRoute, adminProtectRoute , deleteThread);
+router.get("/threads/search", protectRoute, adminProtectRoute ,searchThreads) ;
 
 export default router;
