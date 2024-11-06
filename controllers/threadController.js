@@ -1,46 +1,59 @@
 import Thread from "../models/threadModel.js";
 import User from "../models/userModel.js";
 import { v2 as cloudinary } from "cloudinary";
-
+import fs from 'fs';
 
 const createOrReplyThread = async (req, res) => {
     try {
         const { text, postedBy } = req.body;
         const userId = req.user._id;
         const { parentId } = req.params;
-
+        const imgs = req.files;
         if (!postedBy) {
             return res.status(400).json({ error: "You are not owner post" });
         }
 
         const user = await User.findById(postedBy);
-        if (!user) {
-            return res.status(404).json({ error: "User not found" });
-        }
-
+        if (!user) return res.status(404).json({ error: "User not found" });
         if (user._id.toString() !== userId.toString()) {
             return res.status(401).json({ error: "Unauthorized to create post" });
         }
-
-        if (!text) {
-            return res.status(400).json({ error: "Text field is required" });
-        }
-
-        if (text.length > 500) {
-            return res.status(400).json({ error: "Text must be less than 500 characters" });
-        }
+        if (!text) return res.status(400).json({ error: "Text field is required" });
+        if (text.length > 500) return res.status(400).json({ error: "Text must be less than 500 characters" });
 
         const thread = parentId ? await Thread.findById(parentId) : null;
+        if (parentId && !thread) return res.status(404).json({ error: "Parent thread not found" });
 
-        if (parentId && !thread) {
-            return res.status(404).json({ error: "Parent thread not found" });
+        let imgUrls = [];
+        if (imgs && imgs.length > 0) {
+            try {
+                const uploadPromises = imgs.map(img => {
+                    return cloudinary.uploader.upload(img.path)
+                        .then(result => {
+                            fs.unlinkSync(img.path);
+                            console.log(result) 
+                            return result.secure_url;  
+                        })
+                        .catch(err => {
+                            fs.unlinkSync(img.path);
+                            console.error("Error uploading image:", err);
+                            throw err;
+                        });
+                });
+                imgUrls = await Promise.all(uploadPromises);  // This will be an array of URLs
+            } catch (error) {
+                console.error("Error uploading images:", error);
+                throw error;
+            }
         }
 
-        // Tạo một thread mới
+        console.log(imgUrls)
+
         const newThread = new Thread({
             postedBy: userId,
             text,
             parentId: parentId || null,
+            imgs: imgUrls || [],
         });
 
         await newThread.save();
@@ -52,12 +65,15 @@ const createOrReplyThread = async (req, res) => {
             });
         }
 
+
         res.status(201).json(newThread);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
+
 
 const getThreads = async (req, res) => {
     try {
@@ -241,24 +257,6 @@ const likeUnlikeThread = async (req, res) => {
 };
 
 
-const getCommunityThreads = async (req, res) => {
-    try {
-        const { communityId } = req.params;
-
-        const threads = await Thread.find({ community: communityId })
-            .populate("postedBy author")
-            .sort({ createdAt: -1 });
-
-        if (threads.length === 0) {
-            return res.status(204).json({ message: "No threads found for this community" });
-        }
-
-        res.status(200).json({ success: true, threads });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
-};
 const getLikes = async (req, res) => {
     try {
         const { id: threadId } = req.params;
@@ -327,14 +325,37 @@ const shareThread = async (req, res) => {
     }
 };
 
+const repostThread = async (req, res) => {
+    try {
+        const userId = req.user._id
+        const { id: threadId } = req.body;
+        const user = await User.findById(userId)
+        const thread = await thread.updateOne(
+            threadId,
+            { $inc: { repostCount: 1 } });
+        if (!thread) {
+            return res.status(404).json({ error: "Thread not found" });
+        }
+        await user.updateOne(
+            userId,
+            { $push: { reposts: threadId } });
+        res.status(200).json({ success: true, message: "Thread repost successfully", repostCount: thread.repostCount });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
 export {
     getThreads,
     getThreadById,
     deleteThread,
     likeUnlikeThread,
     createOrReplyThread,
-    getCommunityThreads,
     hideThread,
     getLikes,
+    repostThread,
     shareThread
 };
+
+

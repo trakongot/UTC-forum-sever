@@ -1,7 +1,7 @@
 import User from "../models/userModel.js";
 import jwt from "jsonwebtoken";
 
-const protectRoute = async (req, res, next) => {
+export const authenticateUser = async (req, res, next) => {
 	try {
 		const token = req.cookies.jwt;
 
@@ -20,4 +20,13 @@ const protectRoute = async (req, res, next) => {
 	}
 };
 
-export default protectRoute;
+
+
+export const authorizeRoles = (...allowedRoles) => {
+	return (req, res, next) => {
+		if (!req.user || !allowedRoles.includes(req.user.role)) {
+			return res.status(403).json({ message: "Access denied" });
+		}
+		next();
+	};
+};

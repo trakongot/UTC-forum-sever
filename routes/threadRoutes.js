@@ -7,19 +7,31 @@ import {
     hideThread,
     getLikes,
     createOrReplyThread,
+    repostThread,
 } from "../controllers/threadController.js";
-import protectRoute from "../middlewares/protectRoute.js";
+import multer from "multer";
+import { authenticateUser } from "../middlewares/protectRoute.js";
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, "temp/");
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`);
+    },
+});
+const upload = multer({ storage });
 
 const router = express.Router();
 
 router.get("/", getThreads);
 router.get("/:id", getThreadById);
-router.post("/", protectRoute, createOrReplyThread);
-router.post("/reply/:parentId", protectRoute, createOrReplyThread)
-router.delete("/:id", protectRoute, deleteThread);
-router.put("/like/:id", protectRoute, likeUnlikeThread);
-router.put("/hide/:id", protectRoute, hideThread);
-router.get("/:id/likes", protectRoute, getLikes);
-
+router.post("/", authenticateUser, upload.array("imgs"), createOrReplyThread);
+router.post("/reply/:parentId?", authenticateUser, upload.array("imgs"), createOrReplyThread);
+router.delete("/:id", authenticateUser, deleteThread);
+router.put("/like/:id", authenticateUser, likeUnlikeThread);
+router.put("/hide/:id", authenticateUser, hideThread);
+router.get("/:id/likes", authenticateUser, getLikes);
+router.put("/repost", authenticateUser, repostThread);
 
 export default router;
