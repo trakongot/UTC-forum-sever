@@ -2,6 +2,8 @@ import Thread from "../models/threadModel.js";
 import User from "../models/userModel.js";
 import { v2 as cloudinary } from "cloudinary";
 import fs from 'fs';
+import { checkBadWords } from "../utils/helpers/checkBadword.js";
+import { checkImageViolation, loadModel } from "../utils/helpers/imageValidation.js";
 
 const createOrReplyThread = async (req, res) => {
     try {
@@ -23,31 +25,56 @@ const createOrReplyThread = async (req, res) => {
 
         const thread = parentId ? await Thread.findById(parentId) : null;
         if (parentId && !thread) return res.status(404).json({ error: "Parent thread not found" });
-
+        const badWords = checkBadWords(text);
+        if (badWords.length > 0) {
+            return res.status(400).json({ error: "Text contains inappropriate language", badWords });
+        }
         let imgUrls = [];
+
         if (imgs && imgs.length > 0) {
+            await loadModel();
+
+            const imageChecks = await Promise.all(imgs.map(async (img) => {
+                const violation = await checkImageViolation(img.path);
+                return { image: img.path, violation };
+            }));
+
+            const violations = imageChecks.filter(imgCheck => imgCheck.violation.isViolation);
+            if (violations.length > 0) {
+                return res.status(400).json({
+                    error: "Some images contain inappropriate content",
+                    violations: violations.map(violation => violation.image),
+                    violationDetails: violations.map(violation => ({
+                        image: violation.image,
+                        violations: violation.violation.violations
+                    }))
+                });
+            }
+
             try {
-                const uploadPromises = imgs.map(img => {
-                    return cloudinary.uploader.upload(img.path)
+                const uploadPromises = imgs.map(img =>
+                    cloudinary.uploader.upload(img.path)
                         .then(result => {
                             fs.unlinkSync(img.path);
-                            console.log(result) 
-                            return result.secure_url;  
+                            return result.secure_url;
                         })
                         .catch(err => {
                             fs.unlinkSync(img.path);
                             console.error("Error uploading image:", err);
                             throw err;
-                        });
-                });
-                imgUrls = await Promise.all(uploadPromises);  // This will be an array of URLs
+                        })
+                );
+
+                imgUrls = await Promise.all(uploadPromises);
             } catch (error) {
                 console.error("Error uploading images:", error);
                 throw error;
             }
+        } else {
+            return res.status(400).json({
+                error: "No images provided"
+            });
         }
-
-        console.log(imgUrls)
 
         const newThread = new Thread({
             postedBy: userId,

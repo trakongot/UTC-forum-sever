@@ -8,7 +8,7 @@ import {
 	getFeedPosts,
 	getUserPosts,
 } from "../controllers/postController.js";
-import { authenticateUser } from "../middlewares/protectRoute.js";
+import { authenticateUser } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 

@@ -9,9 +9,7 @@ import {
 	getSuggestedUsers,
 	freezeAccount,
 } from "../controllers/userController.js";
-import { authenticateUser } from "../middlewares/protectRoute.js";
-
-
+import { authenticateUser } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
