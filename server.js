@@ -7,6 +7,8 @@ import userRoutes from "./routes/userRoutes.js";
 import theardRoutes from "./routes/threadRoutes.js";
 import swaggerUi from 'swagger-ui-express';
 import messageRoutes from "./routes/messageRoutes.js";
+import repostRoutes from "./routes/repostRoutes.js"
+import saveRoutes from "./routes/saveRoutes.js"
 import { v2 as cloudinary } from "cloudinary";
 import { app } from "./socket/socket.js";
 import job from "./cron/cron.js";
@@ -36,6 +38,8 @@ app.use("/api/users", userRoutes);
 // app.use("/api/posts", postRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/threads", theardRoutes);
+app.use("/api/repost", repostRoutes);
+app.use("/api/saves", saveRoutes);
 
 // API docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

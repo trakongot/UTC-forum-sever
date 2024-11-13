@@ -10,6 +10,7 @@ import {
 } from "../controllers/postController.js";
 import { authenticateUser } from "../middlewares/protectRoute.js";
 
+
 const router = express.Router();
 
 router.get("/feed", authenticateUser, getFeedPosts);

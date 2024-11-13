@@ -325,6 +325,8 @@ const shareThread = async (req, res) => {
     }
 };
 
+
+
 export {
     getThreads,
     getThreadById,
@@ -333,7 +335,7 @@ export {
     createOrReplyThread,
     hideThread,
     getLikes,
-    shareThread
+    shareThread,
 };
 
 

@@ -31,10 +31,12 @@ const signupUser = async (req, res) => {
 		if (!name || name.trim() === '') return res.status(400).json({ error: "Name is required" });
 		if (!email || !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/.test(email)) return res.status(400).json({ error: "Invalid email" });
 		if (!username || username.trim() === '') return res.status(400).json({ error: "Username is required" });
-		if (!password || !/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{6,}$/.test(password)) {
-			return res.status(400).json({ error: "Password must be at least 6 characters long, and include at least one upper case letter, one lower case letter, one number, and one special character" });
+		// if (!password || !/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{6,}$/.test(password)) {
+		// 	return res.status(400).json({ error: "Password must be at least 6 characters long, and include at least one upper case letter, one lower case letter, one number, and one special character" });
+		// }
+		if (!password) {
+			return res.status(400).json({ error: "Password not be empty" });
 		}
-
 		const user = await User.findOne({ $or: [{ email }, { username }] });
 		if (user) return res.status(400).json({ error: "User already exists" });
 
