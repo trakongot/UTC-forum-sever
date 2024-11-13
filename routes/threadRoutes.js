@@ -7,10 +7,19 @@ import {
     hideThread,
     getLikes,
     createOrReplyThread,
-    saveThread,
-    repostThread,
 } from "../controllers/threadController.js";
-import protectRoute from "../middlewares/protectRoute.js";
+import multer from "multer";
+import { authenticateUser } from "../middlewares/protectRoute.js";
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, "temp/");
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`);
+    },
+});
+const upload = multer({ storage });
 
 const router = express.Router();
 
@@ -22,11 +31,6 @@ router.delete("/:id", protectRoute, deleteThread);
 router.put("/like/:id", protectRoute, likeUnlikeThread);
 router.put("/hide/:id", protectRoute, hideThread);
 router.get("/:id/likes", protectRoute, getLikes);
-router.post("/save", protectRoute, saveThread);
-router.put("/repost", protectRoute, repostThread);
-
-
-
 
 
 export default router;

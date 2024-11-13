@@ -61,7 +61,7 @@ const userSchema = mongoose.Schema(
 			}
 		],
 		accountStatus: {
-			type: String, // "active", "temporary_ban", "permanent_ban"
+			type: String, 
 			default: "active",
 			enum: ["active", "temporary_ban", "permanent_ban"],
 		},
