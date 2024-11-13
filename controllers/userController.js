@@ -4,6 +4,9 @@ import bcrypt from "bcryptjs";
 import generateTokenAndSetCookie from "../utils/helpers/generateTokenAndSetCookie.js";
 import { v2 as cloudinary } from "cloudinary";
 import mongoose from "mongoose";
+import jwt from 'jsonwebtoken';
+import sendVerificationEmail from '../utils/helpers/sendVerificationEmail.js';
+
 
 const getUserById = async (req, res) => {
 	const { id } = req.params;
@@ -26,25 +29,27 @@ const getUserById = async (req, res) => {
 
 const signupUser = async (req, res) => {
 	try {
-		const { name, email, username, password } = req.body;
+		const { name, email, username, password, verificationCode } = req.body;
 
-		if (!name || name.trim() === '') return res.status(400).json({ error: "Name is required" });
-		if (!email || !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/.test(email)) return res.status(400).json({ error: "Invalid email" });
-		if (!username || username.trim() === '') return res.status(400).json({ error: "Username is required" });
-		if (!password || !/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{6,}$/.test(password)) {
-			return res.status(400).json({ error: "Password must be at least 6 characters long, and include at least one upper case letter, one lower case letter, one number, and one special character" });
-		}
-
-		const user = await User.findOne({ $or: [{ email }, { username }] });
-		if (user) return res.status(400).json({ error: "User already exists" });
+		// Kiểm tra thông tin cơ bản
+		if (!name || !email || !username || !password) {return res.status(400).json({ error: "All fields are required." });}
+		if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/.test(email)) {return res.status(400).json({ error: "Invalid email format." });}
+		if (!/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{6,}$/.test(password)) {return res.status(400).json({ error: "Password does not meet criteria." });}
+		
+		const userExists = await User.findOne({ $or: [{ email }, { username }] });
+		if (userExists) return res.status(400).json({ error: "User already exists." });
 
 		const hashedPassword = await bcrypt.hash(password, await bcrypt.genSalt(10));
 
-		const newUser = new User({ name, email, username, password: hashedPassword });
+		const newUser = new User({ 
+			name, 
+			email, 
+			username, 
+			password: hashedPassword, 
+		});
 		await newUser.save();
 
 		generateTokenAndSetCookie(newUser._id, res);
-
 		res.status(201).json({
 			_id: newUser._id,
 			name: newUser.name,
@@ -58,36 +63,67 @@ const signupUser = async (req, res) => {
 		console.log("Error in signupUser: ", err.message);
 	}
 };
-
-
 const signinUser = async (req, res) => {
-	try {
-		const { username, password } = req.body;
-		const user = await User.findOne({ username });
-		const isPasswordCorrect = await bcrypt.compare(password, user?.password || "");
+    try {
+        const { username, password } = req.body;
+        const user = await User.findOne({ username });
+        const isPasswordCorrect = await bcrypt.compare(password, user?.password || "");
 
-		if (!user || !isPasswordCorrect) return res.status(400).json({ error: "Invalid username or password" });
-
-		if (user.isFrozen) {
-			user.isFrozen = false;
-			await user.save();
-		}
-
-		generateTokenAndSetCookie(user._id, res);
-
-		res.status(200).json({
-			_id: user._id,
-			name: user.name,
-			email: user.email,
-			username: user.username,
-			bio: user.bio,
-			profilePic: user.profilePic,
-		});
-	} catch (error) {
-		res.status(500).json({ error: error.message });
-		console.log("Error in loginUser: ", error.message);
-	}
+        if (!user || !isPasswordCorrect) {
+            return res.status(400).json({ error: "Invalid username or password" });
+        }
+		// Kiểm tra xem người dùng có cần xác thực không
+        if (!user.emailVerifiedToken) {
+            // Gửi email xác thực nếu chưa có token
+			//Đặt tên cho action
+            await sendVerificationEmail(user, 'login');
+            return res.status(200).json({
+                message: "Verification link sent to your email. Please check to complete login."
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+        console.log("Error in signinUser: ", error.message);
+    }
 };
+
+const verifyEmail = async (req, res) => {
+    const { token, action } = req.query;
+    const { id } = req.params;  // ID người dùng sẽ được lấy từ URL
+
+    if (!token) {
+        return res.status(400).json({ error: "Invalid or missing verification token" });
+    }
+
+    try {
+        const { userId } = jwt.verify(token, process.env.JWT_SECRET);
+        if (userId !== id) {
+            return res.status(400).json({ error: "User ID does not match" });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+		//Các action cần verify
+        if (action === 'login') {
+            // Thực hiện logic đăng nhập
+            generateTokenAndSetCookie(user._id, res);
+            return res.status(200).json({ message: "Login verified successfully" });
+        } 
+		else if (action === 'delete') {
+            // Thực hiện logic xóa dữ liệu quan trọng
+            // (Ví dụ: Kiểm tra quyền admin và xóa tài nguyên)
+        return res.status(200).json({ message: "Admin action verified successfully" });
+        }
+
+        return res.status(400).json({ error: "Invalid action" });
+    } catch (error) {
+        return res.status(400).json({ error: "Invalid or expired token" });
+    }
+};
+
+
+
 
 const logoutUser = (req, res) => {
 	try {
@@ -217,4 +253,5 @@ export {
 	getUserById,
 	getSuggestedUsers,
 	freezeAccount,
+	verifyEmail,
 };
