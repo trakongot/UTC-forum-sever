@@ -1,5 +1,4 @@
 import User from "../models/userModel.js";
-import Post from "../models/postModel.js";
 import bcrypt from "bcryptjs";
 import generateTokenAndSetCookie from "../utils/helpers/generateTokenAndSetCookie.js";
 import { v2 as cloudinary } from "cloudinary";
@@ -7,7 +6,7 @@ import mongoose from "mongoose";
 
 const getUserById = async (req, res) => {
 	const { id } = req.params;
-
+	console.log(id)
 	try {
 		if (!mongoose.Types.ObjectId.isValid(id)) {
 			return res.status(400).json({ error: "Invalid user ID format" });
@@ -200,14 +199,109 @@ const freezeAccount = async (req, res) => {
 		if (!user) {
 			return res.status(400).json({ error: "User not found" });
 		}
-
 		user.isFrozen = true;
 		await user.save();
-
 		res.status(200).json({ success: true });
 	} catch (error) {
 		res.status(500).json({ error: error.message });
 	}
+};
+
+// const blockUser = async (req, res) => {
+//   try {
+//     const { userIdToBlock } = req.body;
+//     const userId = req.user.id; 
+//     if (userId === userIdToBlock) {
+//       return res.status(400).json({ message: "You cannot block yourself." });
+//     }
+// 	const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({ message: "User not found." });
+//     }
+// 	if (user.blockedUsers.includes(userIdToBlock)) {
+// 		return res.status(400).json({ message: "This user is already blocked." });
+// 	}
+//     const update = await User.findByIdAndUpdate(
+//       userId,
+//       { $addToSet: { blockedUsers: userIdToBlock } }, 
+//       { new: true }
+//     );
+//     if (!update) {
+//       return res.status(404).json({ message: "User not found." });
+//     }
+//     res.status(200).json({ message: "User blocked successfully." });
+//   } catch (error) {
+//     res.status(500).json({ message: "Internal server error.", error: error.message });
+//   }
+// };
+
+
+// const unBlockUser = async (req, res) => {
+// 	try {
+// 	const { userIdToUnblock } = req.body;
+// 	const user = await User.findById(req.user._id);
+// 	if (!user) {
+// 		return res.status(404).json({ error: "User not found" });
+// 	}
+// 	const isBlocked = user.blockedUsers.includes(userIdToUnblock);
+// 	if (!isBlocked) {
+// 		return res.status(400).json({ error: "User is not in the blocked list" });
+// 	}
+// 	user.blockedUsers = user.blockedUsers.filter(id => id.toString() !== userIdToUnblock);
+// 	await user.save();
+// 	res.status(200).json({ message: "User unblocked successfully" });
+// 	} catch (error) {
+// 		res.status(500).json({ error: "An error occurred while unblocking the user" });
+// 	}
+//   };
+const blockAndUnblockUser = async (req, res) => {
+  try {
+    const { userIdToToggle } = req.body;
+    const userId = req.user.id;
+    if (userId === userIdToToggle) {
+      return res.status(400).json({ message: "You cannot block/unblock yourself." });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    const isBlocked = user.blockedUsers.includes(userIdToToggle);
+    if (isBlocked) {
+      user.blockedUsers = user.blockedUsers.filter(id => id.toString() !== userIdToToggle);
+      await user.save();
+      return res.status(200).json({ message: "User unblocked successfully." });
+    } else {
+      await User.findByIdAndUpdate(
+        userId,
+        { $addToSet: { blockedUsers: userIdToToggle } },
+        { new: true }
+      );
+      return res.status(200).json({ message: "User blocked successfully." });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error.", error: error.message });
+  }
+};
+
+const getBlockedUsers = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id); 
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+     const blockedUsers = await User.find({
+      '_id': { $in: user.blockedUsers }
+    }).select('_id username profilePic bio accountStatus');
+    if (blockedUsers.length === 0) {
+      return res.status(404).json({ message: "No blocked users found" });
+    }
+    res.status(200).json({ blockedUsers });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "An error occurred while fetching blocked users" });
+  }
 };
 
 export {
@@ -219,4 +313,6 @@ export {
 	getUserById,
 	getSuggestedUsers,
 	freezeAccount,
+	blockAndUnblockUser,
+	getBlockedUsers,
 };

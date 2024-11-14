@@ -100,7 +100,7 @@
 
 /**
  * @swagger
- * /users/logout:
+ * /api/users/logout:
  *   post:
  *     tags: [Users]
  *     summary: Logout a user
@@ -110,4 +110,107 @@
  *         description: User logged out successfully
  *       500:
  *         description: Internal Server Error
+ */
+
+/**
+ * @swagger
+ * /api/users/block:
+ *   post:
+ *     summary: Block or Unblock a user
+ *     description: Toggle the block status of a user. If the user is blocked, they will be unblocked. If the user is not blocked, they will be blocked.
+ *     security:
+ *       - BearerAuth: []
+ *     tags:
+ *       - Users
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userIdToToggle:
+ *                 type: string
+ *                 description: The ID of the user to block or unblock.
+ *                 example: "60b4f8d1d98c6a2c4f2b3d61"
+ *     responses:
+ *       200:
+ *         description: User was successfully blocked or unblocked.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Success message
+ *                   example: "User blocked successfully."
+ *       400:
+ *         description: Bad request due to invalid ID or attempting to block/unblock yourself.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Error message
+ *                   example: "You cannot block/unblock yourself."
+ *       404:
+ *         description: User not found or user is not in the blocked list.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Error message
+ *                   example: "User not found."
+ *       500:
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Error message
+ *                   example: "Internal server error."
+ */
+
+/**
+ * @swagger
+ * /api/users/block:
+ *   get:
+ *     summary: Retrieve a list of blocked users
+ *     description: Returns a list of users who are blocked by the current user.
+ *     responses:
+ *       200:
+ *         description: A list of blocked users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 blockedUsers:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       username:
+ *                         type: string
+ *                       profilePic:
+ *                         type: string
+ *                       bio:
+ *                         type: string
+ *                       accountStatus:
+ *                         type: string
+ *       404:
+ *         description: No blocked users found
+ *       500:
+ *         description: An error occurred while fetching blocked users
  */
