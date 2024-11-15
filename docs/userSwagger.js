@@ -61,13 +61,13 @@
  *           schema:
  *             type: object
  *             properties:
- *               username:
+ *               email:
  *                 type: string
  *               password:
  *                 type: string
  *           example:           
  *             {
- *                 "username": "muckhpo",
+ *                 "email": "tudinhle1000@gmail.com",
  *                 "password": "123"
  *             }
  *     responses:
@@ -100,7 +100,7 @@
 
 /**
  * @swagger
- * /users/logout:
+ * /api/users/logout:
  *   post:
  *     tags: [Users]
  *     summary: Logout a user

@@ -11,6 +11,7 @@ import { v2 as cloudinary } from "cloudinary";
 import { app } from "./socket/socket.js";
 import job from "./cron/cron.js";
 import swaggerSpec from "./utils/config/swagger.js";
+import cors from 'cors';
 
 dotenv.config();
 
@@ -19,7 +20,12 @@ job.start();
 
 const PORT = process.env.PORT || 5000;
 // const __dirname = path.resolve();
-
+app.use(cors({
+	origin: ['http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:5500'],
+	methods: ['GET', 'POST', 'PUT', 'DELETE'],
+	allowedHeaders: ['Content-Type', 'Authorization'],
+	credentials: true,
+}));
 cloudinary.config({
 	cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
 	api_key: process.env.CLOUDINARY_API_KEY,

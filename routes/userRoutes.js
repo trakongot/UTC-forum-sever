@@ -8,18 +8,30 @@ import {
 	updateUser,
 	getSuggestedUsers,
 	freezeAccount,
+	updateUserOnboarded,
 } from "../controllers/userController.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
+import { fileUploadMiddleware as multer } from "../middlewares/fileUploadMiddleware.js";
 
 const router = express.Router();
 
-router.get("/:id", getUserById);
-router.get("/suggested", authenticateUser, getSuggestedUsers);
-router.post("/signup", signupUser);
-router.post("/signin", signinUser);
-router.post("/logout", logoutUser);
-router.post("/:id/follow", authenticateUser, followUnFollowUser);
-router.put("/:id", authenticateUser, updateUser);
-router.put("/:id/freeze", authenticateUser, freezeAccount);
+// Authentication Routes
+router.post("/signup", signupUser); // Sign up a new user
+router.post("/signin", signinUser); // Sign in an existing user
+router.post("/logout", logoutUser); // Log out the current user
+
+// User Profile Routes
+router.get("/:id", getUserById); // Get user details by ID
+router.put("/", authenticateUser, multer.single("img"), updateUser); // Update user profile
+router.post("/onboarded", authenticateUser, multer.single("img"), updateUserOnboarded); // Mark user as onboarded
+
+// User Actions Routes
+router.post("/:id/follow", authenticateUser, followUnFollowUser); // Follow or unfollow a user
+router.put("/:id/freeze", authenticateUser, freezeAccount); // Freeze a user account
+
+// Other Info
+router.get("/suggested", authenticateUser, getSuggestedUsers); // Get suggested users for following
+
+
 
 export default router;
