@@ -12,7 +12,8 @@ import reportRoutes from "./routes/reportRoutes.js";
 import { v2 as cloudinary } from "cloudinary";
 import { app, server } from "./socket/socket.js";
 import job from "./cron/cron.js";
-
+import cors from "cors";
+import notificationRoutes from "./routes/notificationRoutes.js";
 dotenv.config();
 
 connectDB();
@@ -27,6 +28,16 @@ cloudinary.config({
 	api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+
+const corsOptions = {
+	origin: ["http://127.0.0.1:5500","http://localhost:3000"],  // Thay đổi bằng URL của frontend
+	methods: ["GET", "POST", "PUT", "DELETE"], // Các phương thức HTTP được phép
+	credentials: true,  // Cho phép cookie được gửi kèm trong yêu cầu
+  };
+  
+  // Sử dụng CORS middleware	
+app.use(cors(corsOptions));
+
 // Middlewares
 app.use(express.json({ limit: "50mb" })); // To parse JSON data in the req.body
 app.use(express.urlencoded({ extended: true })); // To parse form data in the req.body
@@ -39,6 +50,8 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/threads", theardRoutes);
 app.use("/api/admins", adminRoutes);
 app.use("/api/report", reportRoutes);
+app.use("/api/notifications", notificationRoutes);
+
 
 
 

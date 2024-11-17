@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Like API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .thread {
+            margin: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        .thread h3 {
+            margin: 0;
+        }
+        .likes {
+            margin-top: 10px;
+        }
+        button {
+            margin: 5px;
+            padding: 8px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Test Like/Unlike API</h1>
+    
+    <div id="threadsContainer">
+        <!-- Các bài viết sẽ được load ở đây -->
+    </div>
+
+    <script>
+        // Giả sử chúng ta có danh sách bài viết từ server
+        const threads = [
+            { id: "1", text: "Bài viết đầu tiên", likes: [], likeCount: 0 },
+            { id: "2", text: "Bài viết thứ hai", likes: ["user123"], likeCount: 1 },
+        ];
+
+        // Hàm hiển thị bài viết
+        function displayThreads() {
+            const container = document.getElementById('threadsContainer');
+            container.innerHTML = '';
+
+            threads.forEach(thread => {
+                const threadDiv = document.createElement('div');
+                threadDiv.classList.add('thread');
+                threadDiv.innerHTML = `
+                    <h3>${thread.text}</h3>
+                    <p><strong>Likes:</strong> ${thread.likeCount}</p>
+                    <div class="likes">
+                        <button onclick="toggleLike('${thread.id}')">
+                            ${thread.likes.includes("671a8e20259ff5a8d1f007f9") ? "Unlike" : "Like"}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(threadDiv);
+            });
+        }
+
+        // Hàm gửi yêu cầu Like/Unlike đến server
+        async function toggleLike(threadId) {
+            const userId = "671a8e20259ff5a8d1f007f9"; // ID người dùng (giả sử là user123)
+
+            // Gửi yêu cầu PUT đến API
+            const response = await fetch(`http://localhost:5000/api/threads/like/671f5b76fee809d58255bb72`, {
+                method: 'PUT',
+             
+            });
+
+            if (response.ok) {
+                // Cập nhật lại giao diện sau khi thành công
+                const updatedThread = await response.json();
+                // Tìm và cập nhật thông tin thread trong danh sách
+                const threadIndex = threads.findIndex(thread => thread.id === threadId);
+                if (threadIndex !== -1) {
+                    threads[threadIndex] = updatedThread;
+                }
+                displayThreads();
+            } else {
+                alert("Error liking the thread");
+            }
+        }
+
+        // Hiển thị danh sách bài viết ban đầu
+        displayThreads();
+    </script>
+</body>
+</html>

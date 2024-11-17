@@ -1,7 +1,9 @@
 import Thread from "../models/threadModel.js";
 import User from "../models/userModel.js";
-import { v2 as cloudinary } from "cloudinary";
+import Notification from "../models/notificationModel.js";
 
+import { v2 as cloudinary } from "cloudinary";
+import { getRecipientSocketId, io } from "../socket/socket.js";
 
 const createOrReplyThread = async (req, res) => {
     try {
@@ -183,15 +185,22 @@ const likeUnlikeThread = async (req, res) => {
     try {
         const { id: threadId } = req.params;
         const userId = req.user._id;
-
+        
         const thread = await Thread.findById(threadId);
+        const recipientId  = await User.findById(thread.postedBy);   
         if (!thread) {
             return res.status(404).json({ error: "Thread not found" });
         }
 
         // Check if the user has already liked the thread
         const userLikedThread = thread.likes.includes(userId);
-
+        console.log(threadId , userId , "hahaahahha");
+        let notification = await Notification.findOne({
+            thread: threadId,
+             user: userId, // Nếu trường `User` trong `Notification` là ObjectId của `userId`
+            // type: "like"
+        });
+        console.log(notification,"hehehehe")
         if (userLikedThread) {
             if (thread.likeCount > 0) {
                 await Thread.updateOne(
@@ -219,6 +228,12 @@ const likeUnlikeThread = async (req, res) => {
                     likeCount: thread.likeCount
                 });
             }
+            const result = await Notification.deleteOne({
+                thread: threadId,
+                user: userId,
+                type: "like"
+            });
+                
         } else {
 
             await Thread.updateOne(
@@ -232,6 +247,24 @@ const likeUnlikeThread = async (req, res) => {
                 success: true,
                 message: "Thread liked successfully",
                 likeCount: thread.likeCount + 1
+            });
+
+            if (!notification) {
+                notification = new Notification({
+                    user: userId,
+                    type: "like",
+                    thread: threadId
+                });
+                await notification.save();
+            }
+            console.log(notification);
+
+
+		    const recipientSocketId = getRecipientSocketId(recipientId._id);
+            io.to(recipientSocketId).emit('notification', {
+                threadId,
+                action: 'like',
+                userId,
             });
         }
     } catch (err) {

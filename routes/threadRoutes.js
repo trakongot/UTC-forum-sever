@@ -12,7 +12,7 @@ import { protectRoute, adminProtectRoute } from "../middlewares/protectRoute.js"
 
 const router = express.Router();
 
-router.get("/", getThreads);
+router.get("/" ,getThreads);
 router.get("/:id", getThreadById);
 router.post("/", protectRoute, createOrReplyThread);
 router.post("/reply/:parentId", protectRoute, createOrReplyThread)

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User 2</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>User 2</h1>
+    <div id="onlineUsers"></div>
+    <div id="messages"></div>
+    <button onclick="markMessagesAsSeen()">Mark Messages as Seen</button>
+
+    <script>
+        const socket = io("http://localhost:5000", {
+            query: { userId: "user2" },
+        });
+
+        socket.on("connect", () => {
+            console.log("User 2 connected:", socket.id);
+        });
+
+        socket.on("getOnlineUsers", (users) => {
+            document.getElementById("onlineUsers").innerHTML = "Online Users: " + users.join(", ");
+        });
+
+        socket.on("messagesSeen", ({ conversationId }) => {
+            const messagesDiv = document.getElementById("messages");
+            messagesDiv.innerHTML = `Messages in conversation ${conversationId} marked as seen.`;
+        });
+
+        function markMessagesAsSeen() {
+            socket.emit("markMessagesAsSeen", { conversationId: "123", userId: "user2" });
+        }
+
+        socket.on("disconnect", () => {
+            console.log("User 2 disconnected");
+        });
+    </script>
+</body>
+</html>
