@@ -1,81 +1,163 @@
 import User from "../models/userModel.js";
-import Post from "../models/postModel.js";
 import bcrypt from "bcryptjs";
 import generateTokenAndSetCookie from "../utils/helpers/generateTokenAndSetCookie.js";
-import { v2 as cloudinary } from "cloudinary";
 import mongoose from "mongoose";
+import { checkBadWords } from "../utils/helpers/checkBadword.js";
+import { handleImagesCheckAndUpload } from "../utils/helpers/handleImagesCheckAndUpload.js";
 
-const getUserProfile = async (req, res) => {
-	const { query } = req.params;
+export const getUserById = async (req, res) => {
+	const { id } = req.params;
 
 	try {
-		let user;
-
-		if (mongoose.Types.ObjectId.isValid(query)) {
-			user = await User.findOne({ _id: query }).select("-password").select("-updatedAt");
-		} else {
-			user = await User.findOne({ username: query }).select("-password").select("-updatedAt");
+		if (!mongoose.Types.ObjectId.isValid(id)) {
+			return res.status(400).json({ error: "Invalid user ID format" });
 		}
+
+		const user = await User.findById(id).select("-password -updatedAt");
 
 		if (!user) return res.status(404).json({ error: "User not found" });
 
-		res.status(200).json(user);
+		res.status(200).json({
+			_id: user._id,
+			name: user.name || "Welcome to UTC Threads",
+			email: user.email,
+			username: user.username || "user_" + user._id.toString().slice(-6),
+			bio: user.bio || "New member at UTC Threads",
+			profilePic: user.profilePic || "https://res.cloudinary.com/muckhotieu/image/upload/v1731805369/l60Hf_ztxub0.png",
+			onboarded: user.onboarded || false,
+			followers: user.followers || [],
+			following: user.following || [],
+			role: user.role || "user",
+			accountStatus: user.accountStatus || "active",
+			banExpiration: user.banExpiration || null,
+			viewedThreads: user.viewedThreads || [],
+			saves: user.saves || [],
+			reposts: user.reposts || [],
+			blockedUsers: user.blockedUsers || [],
+			createdAt: user.createdAt || new Date().toISOString(),
+			updatedAt: user.updatedAt || new Date().toISOString(),
+		});
 	} catch (err) {
 		res.status(500).json({ error: err.message });
-		console.log("Error in getUserProfile: ", err.message);
+		console.log("Error in getUserById: ", err.message);
 	}
 };
-
-const signupUser = async (req, res) => {
+export const getUserByCookies = async (req, res) => {
 	try {
-		const { name, email, username, password } = req.body;
-		console.log("Request Body:", req.body); // Ghi log yêu cầu
-		const user = await User.findOne({ $or: [{ email }, { username }] });
+		const user = req.user;
+		if (!user) return res.status(404).json({ error: "User not found" });
+		res.status(200).json({
+			_id: user._id,
+			name: user.name || "Welcome to UTC Threads",
+			email: user.email,
+			username: user.username || "user_" + user._id.toString().slice(-6),
+			bio: user.bio || "New member at UTC Threads",
+			profilePic: user.profilePic || "https://res.cloudinary.com/muckhotieu/image/upload/v1731805369/l60Hf_ztxub0.png",
+			onboarded: user.onboarded || false,
+			followers: user.followers || [],
+			following: user.following || [],
+			role: user.role || "user",
+			accountStatus: user.accountStatus || "active",
+			banExpiration: user.banExpiration || null,
+			viewedThreads: user.viewedThreads || [],
+			saves: user.saves || [],
+			reposts: user.reposts || [],
+			blockedUsers: user.blockedUsers || [],
+			createdAt: user.createdAt || new Date().toISOString(),
+			updatedAt: user.updatedAt || new Date().toISOString(),
+		});
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+		console.log("Error in getUserById: ", err.message);
+	}
+};
+export const signupUser = async (req, res) => {
+	try {
+		const { email, password } = req.body;
 
-		if (user) {
+		if (!email || !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/.test(email)) {
+			return res.status(400).json({ error: "Invalid email" });
+		}
+
+		if (!password || !/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{6,}$/.test(password)) {
+			return res.status(400).json({
+				error: "Password must be at least 6 characters long, include at least one uppercase letter, one lowercase letter, one number, and one special character."
+			});
+		}
+
+		const existingUser = await User.findOne({ email });
+		if (existingUser) {
 			return res.status(400).json({ error: "User already exists" });
 		}
+
 		const salt = await bcrypt.genSalt(10);
 		const hashedPassword = await bcrypt.hash(password, salt);
 
 		const newUser = new User({
-			name,
-			email,
-			username,
-			password: hashedPassword,
+			email, password: hashedPassword, name: "Welcome to UTC Threads", username: "new_user" + Date.now().toString(),
 		});
 		await newUser.save();
-
-		if (newUser) {
-			generateTokenAndSetCookie(newUser._id, res);
-
-			res.status(201).json({
-				_id: newUser._id,
-				name: newUser.name,
-				email: newUser.email,
-				username: newUser.username,
-				bio: newUser.bio,
-				profilePic: newUser.profilePic,
-			});
-		} else {
-			res.status(400).json({ error: "Invalid user data" });
-		}
+		generateTokenAndSetCookie(newUser._id, res);
+		res.status(201).json({
+			_id: newUser._id,
+			email: newUser.email,
+			username: "user_" + newUser._id.toString().slice(-6),
+			bio: "New member at UTC Threads",
+			profilePic: "https://res.cloudinary.com/muckhotieu/image/upload/v1731805369/l60Hf_ztxub0.png",
+		});
 	} catch (err) {
-		res.status(500).json({ error: err.message });
-		console.log("Error in signupUser: ", err.message);
+		console.error("Error in signupUser:", err.message);
+		res.status(500).json({ error: "Internal server error" });
 	}
 };
-
-const loginUser = async (req, res) => {
+export const signinUser = async (req, res) => {
 	try {
-		const { username, password } = req.body;
-		const user = await User.findOne({ username });
-		const isPasswordCorrect = await bcrypt.compare(password, user?.password || "");
+		const { email, password } = req.body;
 
-		if (!user || !isPasswordCorrect) return res.status(400).json({ error: "Invalid username or password" });
+		// Kiểm tra email và password
+		const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+		if (!emailRegex.test(email)) {
+			return res.status(400).json({ error: 'Invalid email format' });
+		}
+		if (!password) {
+			return res.status(400).json({ error: 'Password is required' });
+		}
+
+		const user = await User.findOne({ email });
+		if (!user) {
+			return res.status(400).json({ error: 'Invalid username or password' });
+		}
+
+		const isPasswordCorrect = await bcrypt.compare(password, user.password);
+		if (!isPasswordCorrect) {
+			return res.status(400).json({ error: 'Invalid username or password' });
+		}
 
 		if (user.isFrozen) {
 			user.isFrozen = false;
+		}
+
+		// Gán giá trị mặc định nếu chưa có
+		const defaults = {
+			name: "Welcome to UTC Threads",
+			username: "user_" + user._id.toString().slice(-6),
+			bio: "New member at UTC Threads",
+			profilePic: "https://res.cloudinary.com/muckhotieu/image/upload/v1731805369/l60Hf_ztxub0.png",
+			role: "user",
+			accountStatus: "active",
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+		};
+
+		let hasChanges = false;
+		for (let key in defaults) {
+			if (!user[key]) {
+				user[key] = defaults[key];
+				hasChanges = true;
+			}
+		}
+
+		if (hasChanges) {
 			await user.save();
 		}
 
@@ -88,14 +170,27 @@ const loginUser = async (req, res) => {
 			username: user.username,
 			bio: user.bio,
 			profilePic: user.profilePic,
+			onboarded: user.onboarded || false,
+			followers: user.followers || [],
+			following: user.following || [],
+			role: user.role,
+			accountStatus: user.accountStatus,
+			banExpiration: user.banExpiration || null,
+			viewedThreads: user.viewedThreads || [],
+			saves: user.saves || [],
+			reposts: user.reposts || [],
+			blockedUsers: user.blockedUsers || [],
+			createdAt: user.createdAt,
+			updatedAt: user.updatedAt,
 		});
 	} catch (error) {
-		res.status(500).json({ error: error.message });
-		console.log("Error in loginUser: ", error.message);
+		console.error("Error in signinUser: ", error.message);
+		res.status(500).json({ error: "Internal Server Error" });
 	}
 };
 
-const logoutUser = (req, res) => {
+
+export const logoutUser = (req, res) => {
 	try {
 		res.cookie("jwt", "", { maxAge: 1 });
 		res.status(200).json({ message: "User logged out successfully" });
@@ -105,96 +200,222 @@ const logoutUser = (req, res) => {
 	}
 };
 
-const followUnFollowUser = async (req, res) => {
+export const followUnFollowUser = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const userToModify = await User.findById(id);
-		const currentUser = await User.findById(req.user._id);
-
 		if (id === req.user._id.toString())
 			return res.status(400).json({ error: "You cannot follow/unfollow yourself" });
 
-		if (!userToModify || !currentUser) return res.status(400).json({ error: "User not found" });
+		const [userToModify, currentUser] = await Promise.all([
+			User.findById(id),
+			User.findById(req.user._id)
+		]);
 
-		const isFollowing = currentUser.following.includes(id);
+		if (!userToModify || !currentUser)
+			return res.status(400).json({ error: "User not found" });
 
-		if (isFollowing) {
-			// Unfollow user
-			await User.findByIdAndUpdate(id, { $pull: { followers: req.user._id } });
-			await User.findByIdAndUpdate(req.user._id, { $pull: { following: id } });
-			res.status(200).json({ message: "User unfollowed successfully" });
-		} else {
-			// Follow user
-			await User.findByIdAndUpdate(id, { $push: { followers: req.user._id } });
-			await User.findByIdAndUpdate(req.user._id, { $push: { following: id } });
-			res.status(200).json({ message: "User followed successfully" });
-		}
+		const updateAction = currentUser.following.includes(id) ? '$pull' : '$push';
+		const message = updateAction === '$pull' ? "User unfollowed successfully" : "User followed successfully";
+
+		await Promise.all([
+			User.findByIdAndUpdate(id, { [updateAction]: { followers: req.user._id } }),
+			User.findByIdAndUpdate(req.user._id, { [updateAction]: { following: id } })
+		]);
+
+		res.status(200).json({ message });
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 		console.log("Error in followUnFollowUser: ", err.message);
 	}
 };
 
-const updateUser = async (req, res) => {
-	const { name, email, username, password, bio } = req.body;
-	let { profilePic } = req.body;
-
-	const userId = req.user._id;
+export const updateUserOnboarded = async (req, res) => {
 	try {
-		let user = await User.findById(userId);
-		if (!user) return res.status(400).json({ error: "User not found" });
+		const { name, username, bio } = req.body;
+		const img = req.file;
+		const userId = req.user._id;
 
-		if (req.params.id !== userId.toString())
-			return res.status(400).json({ error: "You cannot update other user's profile" });
+		const badWordsInName = checkBadWords(name);
+		const badWordsInUsername = checkBadWords(username);
+		const badWordsInBio = bio ? checkBadWords(bio) : [];
 
-		if (password) {
-			const salt = await bcrypt.genSalt(10);
-			const hashedPassword = await bcrypt.hash(password, salt);
-			user.password = hashedPassword;
+		if (badWordsInName.length > 0 || badWordsInUsername.length > 0 || badWordsInBio.length > 0) {
+			return res.status(400).json({
+				error: "Text contains inappropriate language",
+				badWords: [
+					...badWordsInName,
+					...badWordsInUsername,
+					...badWordsInBio,
+				],
+			});
 		}
 
-		if (profilePic) {
-			if (user.profilePic) {
-				await cloudinary.uploader.destroy(user.profilePic.split("/").pop().split(".")[0]);
+		const user = await User.findById(userId);
+
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
+		if (!name) {
+			errors.push("Name is required.");
+		} else if (name.length < 3) {
+			errors.push("Name must be at least 3 characters.");
+		} else if (name.length > 15) {
+			errors.push("Name must not exceed 15 characters.");
+		}
+
+		if (!username) {
+			errors.push("Username is required.");
+		} else if (username.length < 3) {
+			errors.push("Username must be at least 3 characters.");
+		} else if (username.length > 15) {
+			errors.push("Username must not exceed 15 characters.");
+		} else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+			errors.push(
+				"Username must contain only letters, numbers, and underscores, and no spaces or special characters."
+			);
+		}
+
+		let imgUrl = null;
+		if (img) {
+			const result = await handleImagesCheckAndUpload([img]);
+			if (result.error) {
+				return res.status(400).json({
+					error: result.error,
+					violations: result.violations,
+					details: result.details,
+				});
 			}
-
-			const uploadedResponse = await cloudinary.uploader.upload(profilePic);
-			profilePic = uploadedResponse.secure_url;
+			imgUrl = result.data[0];
 		}
 
-		user.name = name || user.name;
-		user.email = email || user.email;
-		user.username = username || user.username;
-		user.profilePic = profilePic || user.profilePic;
+		user.onboarded = true;
+		user.name = name;
+		user.username = username;
 		user.bio = bio || user.bio;
+		user.profilePic = imgUrl;
 
-		user = await user.save();
+		await user.save();
 
-		// Find all posts that this user replied and update username and userProfilePic fields
-		await Post.updateMany(
-			{ "replies.userId": userId },
-			{
-				$set: {
-					"replies.$[reply].username": user.username,
-					"replies.$[reply].userProfilePic": user.profilePic,
-				},
-			},
-			{ arrayFilters: [{ "reply.userId": userId }] }
-		);
-
-		// password should be null in response
-		user.password = null;
-
-		res.status(200).json(user);
-	} catch (err) {
-		res.status(500).json({ error: err.message });
-		console.log("Error in updateUser: ", err.message);
+		res.status(200).json({
+			_id: user._id,
+			name: user.name || "Welcome to UTC Threads",
+			email: user.email,
+			username: user.username || "user_" + user._id.toString().slice(-6),
+			bio: user.bio || "New member at UTC Threads",
+			profilePic: user.profilePic || "https://res.cloudinary.com/muckhotieu/image/upload/v1731805369/l60Hf_ztxub0.png",
+			onboarded: user.onboarded || false,
+			followers: user.followers || [],
+			following: user.following || [],
+			role: user.role || "user",
+			accountStatus: user.accountStatus || "active",
+			banExpiration: user.banExpiration || null,
+			viewedThreads: user.viewedThreads || [],
+			saves: user.saves || [],
+			reposts: user.reposts || [],
+			blockedUsers: user.blockedUsers || [],
+			createdAt: user.createdAt || new Date().toISOString(),
+			updatedAt: user.updatedAt || new Date().toISOString(),
+		});
+	} catch (error) {
+		res.status(500).json({ error: error.message });
 	}
 };
 
-const getSuggestedUsers = async (req, res) => {
+export const updateUser = async (req, res) => {
 	try {
-		// exclude the current user from suggested users array and exclude users that current user is already following
+		const { name, username, bio } = req.body;
+		const img = req.file;
+		const userId = req.user._id;
+
+		const badWordsInName = checkBadWords(name);
+		const badWordsInUsername = checkBadWords(username);
+		const badWordsInBio = bio ? checkBadWords(bio) : [];
+
+		if (badWordsInName.length > 0 || badWordsInUsername.length > 0 || badWordsInBio.length > 0) {
+			return res.status(400).json({
+				error: "Text contains inappropriate language",
+				badWords: [
+					...badWordsInName,
+					...badWordsInUsername,
+					...badWordsInBio,
+				],
+			});
+		}
+
+		const user = await User.findById(userId);
+
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
+		if (!name) {
+			errors.push("Name is required.");
+		} else if (name.length < 3) {
+			errors.push("Name must be at least 3 characters.");
+		} else if (name.length > 15) {
+			errors.push("Name must not exceed 15 characters.");
+		}
+
+		if (!username) {
+			errors.push("Username is required.");
+		} else if (username.length < 3) {
+			errors.push("Username must be at least 3 characters.");
+		} else if (username.length > 15) {
+			errors.push("Username must not exceed 15 characters.");
+		} else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+			errors.push(
+				"Username must contain only letters, numbers, and underscores, and no spaces or special characters."
+			);
+		}
+
+		let imgUrl = null;
+		if (img) {
+			const result = await handleImagesCheckAndUpload([img]);
+
+			if (result.error) {
+				return res.status(400).json({
+					error: result.error,
+					violations: result.violations,
+					details: result.details,
+				});
+			}
+
+			imgUrl = result.data[0];
+		}
+
+		user.name = name;
+		user.username = username;
+		user.bio = bio || user.bio;
+		user.profilePic = imgUrl;
+
+		await user.save();
+
+		res.status(200).json({
+			_id: user._id,
+			name: user.name || "Welcome to UTC Threads",
+			email: user.email,
+			username: user.username || "user_" + user._id.toString().slice(-6),
+			bio: user.bio || "New member at UTC Threads",
+			profilePic: user.profilePic || "https://res.cloudinary.com/muckhotieu/image/upload/v1731805369/l60Hf_ztxub0.png",
+			onboarded: user.onboarded || false,
+			followers: user.followers || [],
+			following: user.following || [],
+			role: user.role || "user",
+			accountStatus: user.accountStatus || "active",
+			banExpiration: user.banExpiration || null,
+			viewedThreads: user.viewedThreads || [],
+			saves: user.saves || [],
+			reposts: user.reposts || [],
+			blockedUsers: user.blockedUsers || [],
+			createdAt: user.createdAt || new Date().toISOString(),
+			updatedAt: user.updatedAt || new Date().toISOString(),
+		});
+	} catch (error) {
+		res.status(500).json({ error: error.message });
+	}
+};
+
+export const getSuggestedUsers = async (req, res) => {
+	try {
 		const userId = req.user._id;
 
 		const usersFollowedByYou = await User.findById(userId).select("following");
@@ -220,7 +441,7 @@ const getSuggestedUsers = async (req, res) => {
 	}
 };
 
-const freezeAccount = async (req, res) => {
+export const freezeAccount = async (req, res) => {
 	try {
 		const user = await User.findById(req.user._id);
 		if (!user) {
@@ -236,13 +457,3 @@ const freezeAccount = async (req, res) => {
 	}
 };
 
-export {
-	signupUser,
-	loginUser,
-	logoutUser,
-	followUnFollowUser,
-	updateUser,
-	getUserProfile,
-	getSuggestedUsers,
-	freezeAccount,
-};

@@ -8,16 +8,17 @@ import {
 	getFeedPosts,
 	getUserPosts,
 } from "../controllers/postController.js";
-import { protectRoute, adminProtectRoute } from "../middlewares/protectRoute.js";
+
+import { authenticateUser } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-router.get("/feed", protectRoute, getFeedPosts);
+router.get("/feed", authenticateUser, getFeedPosts);
 router.get("/:id", getPost);
 router.get("/user/:username", getUserPosts);
-router.post("/create", protectRoute, createPost);
-router.delete("/:id", protectRoute, deletePost);
-router.put("/like/:id", protectRoute, likeUnlikePost);
-router.put("/reply/:id", protectRoute, replyToPost);
+router.post("/create", authenticateUser, createPost);
+router.delete("/:id", authenticateUser, deletePost);
+router.put("/like/:id", authenticateUser, likeUnlikePost);
+router.put("/reply/:id", authenticateUser, replyToPost);
 
 export default router;

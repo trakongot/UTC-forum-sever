@@ -10,8 +10,9 @@ const threadSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    img: {
-        type: String,
+    imgs: {
+        type: [String],
+        default: [],
     },
     likes: {
         type: [mongoose.Schema.Types.ObjectId],
