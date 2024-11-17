@@ -2,8 +2,6 @@ import Thread from "../models/threadModel.js";
 import User from "../models/userModel.js";
 import { checkBadWords } from "../utils/helpers/checkBadword.js";
 import { handleImagesCheckAndUpload } from "../utils/helpers/handleImagesCheckAndUpload.js";
-import mongoose from "mongoose";
-
 
 export const createOrReplyThread = async (req, res) => {
     try {
@@ -123,12 +121,13 @@ export const getReplies = async (req, res) => {
         const totalRepliesCount = await Thread.countDocuments({ parentId });
         const isNext = totalRepliesCount > skipAmount + replies.length;
 
-        res.status(200).json({ success: true, replies, isNext });
+        res.status(200).json({ success: true, threads: replies, isNext });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
 
 export const getThreads = async (req, res) => {
     try {
@@ -140,80 +139,63 @@ export const getThreads = async (req, res) => {
         let viewedThreads = [];
 
         if (userId) {
-            const user = await User.findById(userId).select("viewedThreads following").lean();
-            followingIds = user.following || [];
-            viewedThreads = user.viewedThreads || [];
+            const { following = [], viewedThreads: viewed = [] } = await User.findById(userId)
+                .select("viewedThreads following")
+                .lean() || {};
+            followingIds = following;
+            viewedThreads = viewed;
         }
-
         const threadConditions = {
             parentId: null,
             isHidden: false,
-            ...(viewedThreads.length > 0 ? { _id: { $nin: viewedThreads } } : {})
+            ...(viewedThreads.length ? { _id: { $nin: viewedThreads } } : {})
         };
 
-        const threads = await Thread.aggregate([
-            { $match: threadConditions },
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: 'postedBy',
-                    foreignField: '_id',
-                    as: 'postedByInfo'
-                }
-            },
-            {
-                $unwind: {
-                    path: '$postedByInfo',
-                    preserveNullAndEmptyArrays: true
-                }
-            },
-            {
-                $addFields: {
-                    isFollowed: { $in: ['$postedByInfo._id', followingIds] },
-                    postedBy: {
-                        name: '$postedByInfo.name',
-                        profilePic: '$postedByInfo.profilePic',
-                        _id: '$postedByInfo._id'
-                    }
-                }
-            },
-            {
-                $project: {
-                    likes: 0,
-                    __v: 0,
-                    children: 0,
-                    'postedByInfo': 0
-                }
-            },
-            { $sort: { createdAt: -1 } },
-            { $skip: skipAmount },
-            { $limit: parseInt(pageSize) }
-        ]);
+        const threads = await Thread.find(threadConditions)
+            .populate({
+                path: 'postedBy',
+                select: '_id name profilePic',
+            })
+            .sort({ createdAt: -1 })
+            .skip(skipAmount)
+            .limit(parseInt(pageSize))
+            .select('-__v -isHidden')
+            .lean();
+        threads.forEach(thread => {
+            thread.isFollowed = followingIds.includes(thread.postedBy._id);
+            thread.isLiked = Array.isArray(thread.likes) && thread.likes.includes(userId);
+        });
 
-        // Tính tổng số lượng thread
         const totalThreadsCount = await Thread.countDocuments(threadConditions);
         const isNext = totalThreadsCount > skipAmount + threads.length;
 
-        // Trả về kết quả
-        res.status(200).json({ success: true, threads, isNext });
+        res.status(200).json({
+            success: true,
+            threads,
+            isNext
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
 
+
 export const getThreadById = async (req, res) => {
     try {
         const threadId = req.params.id;
+        const userId = req?.user?._id.toString();
         const thread = await Thread.findOne({
             _id: threadId, isHidden: false
         })
             .select('-__v -parentId -children')
-            .populate("postedBy", "_id name username profilePic");
+            .populate("postedBy", "_id name username profilePic")
+            .exec();
+        if (userId && Array.isArray(thread?.likes))
+            thread.isLiked = thread.likes.includes(userId);
         if (!thread) {
             return res.status(404).json({ error: "Thread not found" });
         }
-
         res.status(200).json(thread);
     } catch (err) {
         console.error(err);
@@ -410,7 +392,10 @@ export const getThreadsByUser = async (req, res) => {
             isHidden: false
         })
             .select('-__v -parentId -children -postedByInfo')
-            .sort({ createdAt: -1 })
+            .populate({
+                path: 'postedBy',
+                select: '_id name profilePic',
+            }).sort({ createdAt: -1 })
             .skip(skipAmount)
             .limit(parseInt(pageSize));
         if (result.length === 0) {

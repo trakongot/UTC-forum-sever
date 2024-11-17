@@ -1,5 +1,17 @@
 
-
+/**
+ * @swagger
+ * swagger: "2.0"
+ * info:
+ *   title: "API Documentation"
+ *   version: "1.0.0"
+ * securityDefinitions:
+ *   cookieAuth:
+ *     type: "apiKey"
+ *     in: "cookie"
+ *     name: "jwt"  
+ * security:
+ *   - cookieAuth: [] 
 /**
  * @swagger
  * /api/threads:

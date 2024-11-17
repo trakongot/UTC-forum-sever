@@ -4,7 +4,7 @@
  *   post:
  *     tags: [Users]
  *     summary: Signup a new user
- *     description: Create a new user account with name, email, username, and password.
+ *     description: Create a new user account with email and password.
  *     requestBody:
  *       required: true
  *       content:
@@ -12,13 +12,9 @@
  *           schema:
  *             type: object
  *             properties:
- *               name:
- *                 type: string
  *               email:
  *                 type: string
  *                 format: email
- *               username:
- *                 type: string
  *               password:
  *                 type: string
  *     responses:
@@ -68,7 +64,7 @@
  *           example:           
  *             {
  *                 "email": "tudinhle1000@gmail.com",
- *                 "password": "123"
+ *                 "password": "Cacancap777&&"
  *             }
  *     responses:
  *       200:

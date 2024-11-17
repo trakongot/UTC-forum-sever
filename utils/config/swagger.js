@@ -1,4 +1,5 @@
 import swaggerJSDoc from 'swagger-jsdoc';
+
 const PORT = process.env.PORT || 5000;
 
 const swaggerOptions = {
@@ -12,6 +13,20 @@ const swaggerOptions = {
         servers: [
             {
                 url: `http://localhost:${PORT}`,
+            },
+        ],
+        components: {
+            securitySchemes: {
+                cookieAuth: {
+                    type: 'apiKey',
+                    in: 'cookie',
+                    name: 'jwt',
+                },
+            },
+        },
+        security: [
+            {
+                cookieAuth: [],
             },
         ],
     },

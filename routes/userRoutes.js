@@ -9,6 +9,7 @@ import {
 	getSuggestedUsers,
 	freezeAccount,
 	updateUserOnboarded,
+	getUserByCookies,
 } from "../controllers/userController.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { fileUploadMiddleware as multer } from "../middlewares/fileUploadMiddleware.js";
@@ -21,6 +22,7 @@ router.post("/signin", signinUser); // Sign in an existing user
 router.post("/logout", logoutUser); // Log out the current user
 
 // User Profile Routes
+router.get("/", authenticateUser, getUserByCookies); // Get user details by cookies
 router.get("/:id", getUserById); // Get user details by ID
 router.put("/", authenticateUser, multer.single("img"), updateUser); // Update user profile
 router.post("/onboarded", authenticateUser, multer.single("img"), updateUserOnboarded); // Mark user as onboarded

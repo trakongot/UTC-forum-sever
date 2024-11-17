@@ -11,13 +11,13 @@ import {
     getReplies,
     getThreadsByUser
 } from "../controllers/threadController.js";
-import { authenticateUser } from "../middlewares/authMiddleware.js";
+import { authenticateUser, authenticateUserWithOptionalCookie } from "../middlewares/authMiddleware.js";
 import { fileUploadMiddleware as multer } from "../middlewares/fileUploadMiddleware.js";
 
 const router = express.Router();
 
-router.get("/", getThreads); // Get a list of all threads
-router.get("/:id", getThreadById); // Get details of a single thread by its ID
+router.get("/", authenticateUserWithOptionalCookie, getThreads); // Get a list of all threads
+router.get("/:id",authenticateUserWithOptionalCookie, getThreadById); // Get details of a single thread by its ID
 router.post("/", authenticateUser, multer.array("imgs"), createOrReplyThread); // Create a new thread or reply to an existing thread
 router.post("/:id/replies", authenticateUser, multer.array("imgs"), createOrReplyThread); // Reply to a specific thread (sub-thread)
 router.get("/:id/replies", getReplies); // Get all replies for a specific thread

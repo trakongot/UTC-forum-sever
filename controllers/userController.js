@@ -23,7 +23,7 @@ export const getUserById = async (req, res) => {
 			email: user.email,
 			username: user.username || "user_" + user._id.toString().slice(-6),
 			bio: user.bio || "New member at UTC Threads",
-			profilePic: user.profilePic || "default-profile-pic.png",
+			profilePic: user.profilePic || "https://res.cloudinary.com/muckhotieu/image/upload/v1731805369/l60Hf_ztxub0.png",
 			onboarded: user.onboarded || false,
 			followers: user.followers || [],
 			following: user.following || [],
@@ -42,7 +42,35 @@ export const getUserById = async (req, res) => {
 		console.log("Error in getUserById: ", err.message);
 	}
 };
-
+export const getUserByCookies = async (req, res) => {
+	try {
+		const user = req.user;
+		if (!user) return res.status(404).json({ error: "User not found" });
+		res.status(200).json({
+			_id: user._id,
+			name: user.name || "Welcome to UTC Threads",
+			email: user.email,
+			username: user.username || "user_" + user._id.toString().slice(-6),
+			bio: user.bio || "New member at UTC Threads",
+			profilePic: user.profilePic || "https://res.cloudinary.com/muckhotieu/image/upload/v1731805369/l60Hf_ztxub0.png",
+			onboarded: user.onboarded || false,
+			followers: user.followers || [],
+			following: user.following || [],
+			role: user.role || "user",
+			accountStatus: user.accountStatus || "active",
+			banExpiration: user.banExpiration || null,
+			viewedThreads: user.viewedThreads || [],
+			saves: user.saves || [],
+			reposts: user.reposts || [],
+			blockedUsers: user.blockedUsers || [],
+			createdAt: user.createdAt || new Date().toISOString(),
+			updatedAt: user.updatedAt || new Date().toISOString(),
+		});
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+		console.log("Error in getUserById: ", err.message);
+	}
+};
 export const signupUser = async (req, res) => {
 	try {
 		const { email, password } = req.body;
@@ -70,35 +98,66 @@ export const signupUser = async (req, res) => {
 		});
 		await newUser.save();
 		generateTokenAndSetCookie(newUser._id, res);
-
 		res.status(201).json({
 			_id: newUser._id,
 			email: newUser.email,
 			username: "user_" + newUser._id.toString().slice(-6),
 			bio: "New member at UTC Threads",
-			profilePic: "default-profile-pic.png",
+			profilePic: "https://res.cloudinary.com/muckhotieu/image/upload/v1731805369/l60Hf_ztxub0.png",
 		});
 	} catch (err) {
 		console.error("Error in signupUser:", err.message);
 		res.status(500).json({ error: "Internal server error" });
 	}
 };
-
 export const signinUser = async (req, res) => {
 	try {
 		const { email, password } = req.body;
+
+		// Kiểm tra email và password
 		const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
 		if (!emailRegex.test(email)) {
 			return res.status(400).json({ error: 'Invalid email format' });
 		}
+		if (!password) {
+			return res.status(400).json({ error: 'Password is required' });
+		}
+
 		const user = await User.findOne({ email });
+		if (!user) {
+			return res.status(400).json({ error: 'Invalid username or password' });
+		}
 
-		const isPasswordCorrect = await bcrypt.compare(password, user?.password || "");
-
-		if (!user || !isPasswordCorrect) return res.status(400).json({ error: "Invalid username or password" });
+		const isPasswordCorrect = await bcrypt.compare(password, user.password);
+		if (!isPasswordCorrect) {
+			return res.status(400).json({ error: 'Invalid username or password' });
+		}
 
 		if (user.isFrozen) {
 			user.isFrozen = false;
+		}
+
+		// Gán giá trị mặc định nếu chưa có
+		const defaults = {
+			name: "Welcome to UTC Threads",
+			username: "user_" + user._id.toString().slice(-6),
+			bio: "New member at UTC Threads",
+			profilePic: "https://res.cloudinary.com/muckhotieu/image/upload/v1731805369/l60Hf_ztxub0.png",
+			role: "user",
+			accountStatus: "active",
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+		};
+
+		let hasChanges = false;
+		for (let key in defaults) {
+			if (!user[key]) {
+				user[key] = defaults[key];
+				hasChanges = true;
+			}
+		}
+
+		if (hasChanges) {
 			await user.save();
 		}
 
@@ -106,29 +165,30 @@ export const signinUser = async (req, res) => {
 
 		res.status(200).json({
 			_id: user._id,
-			name: user.name || "Welcome to UTC Threads",
+			name: user.name,
 			email: user.email,
-			username: user.username || "user_" + user._id.toString().slice(-6),
-			bio: user.bio || "New member at UTC Threads",
-			profilePic: user.profilePic || "default-profile-pic.png",
+			username: user.username,
+			bio: user.bio,
+			profilePic: user.profilePic,
 			onboarded: user.onboarded || false,
 			followers: user.followers || [],
 			following: user.following || [],
-			role: user.role || "user",
-			accountStatus: user.accountStatus || "active",
+			role: user.role,
+			accountStatus: user.accountStatus,
 			banExpiration: user.banExpiration || null,
 			viewedThreads: user.viewedThreads || [],
 			saves: user.saves || [],
 			reposts: user.reposts || [],
 			blockedUsers: user.blockedUsers || [],
-			createdAt: user.createdAt || new Date().toISOString(),
-			updatedAt: user.updatedAt || new Date().toISOString(),
+			createdAt: user.createdAt,
+			updatedAt: user.updatedAt,
 		});
 	} catch (error) {
-		res.status(500).json({ error: error.message });
-		console.log("Error in loginUser: ", error.message);
+		console.error("Error in signinUser: ", error.message);
+		res.status(500).json({ error: "Internal Server Error" });
 	}
 };
+
 
 export const logoutUser = (req, res) => {
 	try {
@@ -242,7 +302,7 @@ export const updateUserOnboarded = async (req, res) => {
 			email: user.email,
 			username: user.username || "user_" + user._id.toString().slice(-6),
 			bio: user.bio || "New member at UTC Threads",
-			profilePic: user.profilePic || "default-profile-pic.png",
+			profilePic: user.profilePic || "https://res.cloudinary.com/muckhotieu/image/upload/v1731805369/l60Hf_ztxub0.png",
 			onboarded: user.onboarded || false,
 			followers: user.followers || [],
 			following: user.following || [],
@@ -265,7 +325,6 @@ export const updateUser = async (req, res) => {
 	try {
 		const { name, username, bio } = req.body;
 		const img = req.file;
-		console.log(img)
 		const userId = req.user._id;
 
 		const badWordsInName = checkBadWords(name);
@@ -336,7 +395,7 @@ export const updateUser = async (req, res) => {
 			email: user.email,
 			username: user.username || "user_" + user._id.toString().slice(-6),
 			bio: user.bio || "New member at UTC Threads",
-			profilePic: user.profilePic || "default-profile-pic.png",
+			profilePic: user.profilePic || "https://res.cloudinary.com/muckhotieu/image/upload/v1731805369/l60Hf_ztxub0.png",
 			onboarded: user.onboarded || false,
 			followers: user.followers || [],
 			following: user.following || [],
