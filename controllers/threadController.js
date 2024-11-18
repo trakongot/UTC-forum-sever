@@ -1,5 +1,6 @@
 import Thread from "../models/threadModel.js";
 import User from "../models/userModel.js";
+import Repost from '../models/repostModel.js'; 
 import { v2 as cloudinary } from "cloudinary";
 import fs from 'fs';
 
@@ -73,82 +74,163 @@ const createOrReplyThread = async (req, res) => {
     }
 };
 
-
-
 const getThreads = async (req, res) => {
     try {
         const { pageNumber = 1, pageSize = 20 } = req.query;
         const skipAmount = (pageNumber - 1) * pageSize;
         const userId = req?.user?._id;
 
-        // Khởi tạo biến để lưu danh sách ID theo dõi và ID thread đã xem
         let followingIds = [];
         let viewedThreads = [];
 
-        // Nếu có userId, lấy thông tin người dùng
         if (userId) {
-            const user = await User.findById(userId).select("viewedThreads following").lean();
-            followingIds = user.following || [];
-            viewedThreads = user.viewedThreads || [];
+            const { following = [], viewedThreads: viewed = [] } = await User.findById(userId)
+                .select("viewedThreads following")
+                .lean() || {};
+            followingIds = following;
+            viewedThreads = viewed;
         }
-
-        // Điều kiện tìm kiếm cho các thread
         const threadConditions = {
-            parentId: null, // Lấy các thread cha
+            parentId: null,
             isHidden: false,
-            ...(viewedThreads.length > 0 ? { _id: { $nin: viewedThreads } } : {})
+            ...(viewedThreads.length ? { _id: { $nin: viewedThreads } } : {})
         };
 
-        // Truy vấn các thread
-        const threads = await Thread.aggregate([
-            { $match: threadConditions },
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: 'postedBy',
-                    foreignField: '_id',
-                    as: 'postedByInfo'
-                }
-            },
-            {
-                $unwind: {
-                    path: '$postedByInfo',
-                    preserveNullAndEmptyArrays: true
-                }
-            },
-            {
-                $addFields: {
-                    isFollowed: { $in: ['$postedByInfo._id', followingIds] },
-                    postedBy: {
-                        name: '$postedByInfo.name',
-                        profilePic: '$postedByInfo.profilePic'
-                    }
-                }
-            },
-            {
-                $project: {
-                    likes: 0,
-                    __v: 0,
-                    children: 0,
-                    'postedByInfo': 0 // Bỏ trường không cần thiết
-                }
-            },
-            { $sort: { createdAt: -1 } },
-            { $skip: skipAmount },
-            { $limit: parseInt(pageSize) }
-        ]);
+        const threads = await Thread.find(threadConditions)
+            .populate({
+                path: 'postedBy',
+                select: '_id name profilePic',
+            })
+            .sort({ createdAt: -1 })
+            .skip(skipAmount)
+            .limit(parseInt(pageSize))
+            .select('-__v -isHidden')
+            .lean();
+        threads.forEach(thread => {
+            thread.isFollowed = followingIds.includes(thread.postedBy._id);
+            thread.isLiked = Array.isArray(thread.likes) && thread.likes.includes(userId);
+        });
 
-        // Tính tổng số lượng thread
         const totalThreadsCount = await Thread.countDocuments(threadConditions);
         const isNext = totalThreadsCount > skipAmount + threads.length;
 
-        // Trả về kết quả
-        res.status(200).json({ success: true, threads, isNext });
+        res.status(200).json({
+            success: true,
+            threads,
+            isNext
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
+
+// const getThreads = async (req, res) => {
+//     try {
+//         const { pageNumber = 1, pageSize = 20 } = req.query;
+//         const skipAmount = (pageNumber - 1) * pageSize;
+//         const userId = req?.user?._id;
+
+//         // Khởi tạo biến để lưu danh sách ID theo dõi và ID thread đã xem
+//         let followingIds = [];
+//         let viewedThreads = [];
+
+//         // Nếu có userId, lấy thông tin người dùng
+//         if (userId) {
+//             const user = await User.findById(userId).select("viewedThreads following").lean();
+//             followingIds = user.following || [];
+//             viewedThreads = user.viewedThreads || [];
+//         }
+
+//         // Điều kiện tìm kiếm cho các thread
+//         const threadConditions = {
+//             parentId: null, // Lấy các thread cha
+//             isHidden: false,
+//             ...(viewedThreads.length > 0 ? { _id: { $nin: viewedThreads } } : {})
+//         };
+
+//         // Truy vấn các thread
+//         const threads = await Thread.aggregate([
+//             { $match: threadConditions },
+//             {
+//                 $lookup: {
+//                     from: 'users',
+//                     localField: 'postedBy',
+//                     foreignField: '_id',
+//                     as: 'postedByInfo'
+//                 }
+//             },
+//             {
+//                 $unwind: {
+//                     path: '$postedByInfo',
+//                     preserveNullAndEmptyArrays: true
+//                 }
+//             },
+//             {
+//                 $addFields: {
+//                     isFollowed: { $in: ['$postedByInfo._id', followingIds] },
+//                     postedBy: {
+//                         name: '$postedByInfo.name',
+//                         profilePic: '$postedByInfo.profilePic'
+//                     }
+//                 }
+//             },
+//             {
+//                 $project: {
+//                     likes: 0,
+//                     __v: 0,
+//                     children: 0,
+//                     'postedByInfo': 0 // Bỏ trường không cần thiết
+//                 }
+//             },
+//             { $sort: { createdAt: -1 } },
+//             { $skip: skipAmount },
+//             { $limit: parseInt(pageSize) }
+//         ]);
+
+//         // Tính tổng số lượng thread
+//         const totalThreadsCount = await Thread.countDocuments(threadConditions);
+//         const isNext = totalThreadsCount > skipAmount + threads.length;
+
+//         // Trả về kết quả
+//         res.status(200).json({ success: true, threads, isNext });
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ error: "Internal Server Error" });
+//     }
+// };
+
+export const getThreadsByUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { pageNumber = 1, pageSize = 20 } = req.query;
+        const skipAmount = (pageNumber - 1) * pageSize;
+
+        const result = await Thread.find({
+            postedBy: userId,
+            isHidden: false
+        })
+            .select('-__v -parentId -children -postedByInfo')
+            .populate({
+                path: 'postedBy',
+                select: '_id name profilePic',
+            }).sort({ createdAt: -1 })
+            .skip(skipAmount)
+            .limit(parseInt(pageSize));
+        if (result.length === 0) {
+            return res.status(200).json({ success: true, threads: [], isNext: false });
+        }
+        const totalRepliesCount = await Thread.countDocuments({ postedBy: userId });
+        const isNext = totalRepliesCount > skipAmount + result.length;
+
+        res.status(200).json({ success: true, threads: result, isNext: isNext });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
 
 
 const getThreadById = async (req, res) => {
@@ -175,6 +257,7 @@ const getThreadById = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
 
 const deleteThread = async (req, res) => {
     try {
@@ -345,7 +428,99 @@ const repostThread = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+const getRepliesByUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { pageNumber = 1, pageSize = 20 } = req.query;
+        const skipAmount = (pageNumber - 1) * pageSize;
 
+        // Lấy danh sách các thread mà người dùng đã reply
+        const result = await Thread.find({
+            postedBy: userId,
+            parentId: { $ne: null },
+            isHidden: false
+        })
+            .select('-__v') 
+            .populate({
+                path: 'postedBy',
+                select: '_id name profilePic'
+            })
+            .sort({ createdAt: -1 })
+            .skip(skipAmount)
+            .limit(parseInt(pageSize));
+
+        if (result.length === 0) {
+            return res.status(200).json({ success: true, threads: [], isNext: false });
+        }
+
+        // Lấy danh sách thread gốc bằng cách truy vấn thêm thông tin từ parentId
+        const threadIds = result.map(thread => thread.parentId);
+        const threadsGoc = await Thread.find({ '_id': { $in: threadIds } })
+         //.select('_id likes imgs text postedBy createdAt likeCount commentCount shareCount repostCount');
+
+        const totalRepliesCount = await Thread.countDocuments({
+            postedBy: userId,
+            parentId: { $ne: null },
+        });
+        const isNext = totalRepliesCount > skipAmount + result.length;
+
+        const threadsWithReplies = result.map(thread => {
+            const threadGoc = threadsGoc.find(t => t._id.toString() === thread.parentId);
+            return {
+                thread: threadGoc, // Thread gốc
+                reply: thread, // Reply của người dùng
+            };
+        });
+
+        res.status(200).json({ success: true, threads: threadsWithReplies, isNext: isNext });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
+const getRepostsByUser = async (req, res) => {
+    try {
+        const { userId } = req.params;  
+        const { pageNumber = 1, pageSize = 20 } = req.query;  
+        const skipAmount = (pageNumber - 1) * pageSize;
+
+        const reposts = await Repost.find({ 'user': userId })  // Tìm reposts của người dùng
+            .populate({
+                path: 'thread',  // Lấy thông tin thread gốc từ trường thread trong Repost
+                select: '_id text createdAt likeCount commentCount shareCount repostCount imgs'
+            })
+            .populate({
+                path: 'thread.postedBy',  // Lấy thông tin người đăng thread gốc
+                select: '_id name profilePic'
+            })
+            .sort({ repostedAt: -1 }) 
+            .skip(skipAmount) 
+            .limit(parseInt(pageSize)); 
+
+        if (reposts.length === 0) {
+            return res.status(200).json({ success: true, reposts: [], isNext: false });
+        }
+
+        // Đếm tổng số reposts để xác định xem có page kế tiếp không
+        const totalRepostsCount = await Repost.countDocuments({ 'user': userId });
+        const isNext = totalRepostsCount > skipAmount + reposts.length;
+
+        // Trả về kết quả
+        res.status(200).json({
+            success: true,
+            reposts: reposts.map(repost => repost.thread),  // Chỉ trả về thread gốc của mỗi repost
+            isNext: isNext  // Kiểm tra xem có còn page kế tiếp không
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
+
+
+  
 export {
     getThreads,
     getThreadById,
@@ -355,7 +530,9 @@ export {
     hideThread,
     getLikes,
     repostThread,
-    shareThread
+    shareThread,
+    getRepliesByUser,
+    getRepostsByUser,
 };
 
 

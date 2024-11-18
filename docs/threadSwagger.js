@@ -132,6 +132,207 @@
  */
 /**
  * @swagger
+ * /api/threads/{userId}/replies:
+ *   get:
+ *     tags: [Threads]
+  *     summary: Get a list of replies by a user
+ *     description: Retrieve a list of threads where the user has posted replies, including the original thread and replies.
+ *     parameters:
+ *       - name: userId
+ *         in: path
+ *         description: ID of the user whose replies are being fetched.
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - name: pageNumber
+ *         in: query
+ *         description: The page number to fetch.
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *       - name: pageSize
+ *         in: query
+ *         description: The number of replies per page.
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           example: 20
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved list of replies and the original threads.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 threads:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       thread:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           text:
+ *                             type: string
+ *                           postedBy:
+ *                             type: object
+ *                             properties:
+ *                               _id:
+ *                                 type: string
+ *                               name:
+ *                                 type: string
+ *                               profilePic:
+ *                                 type: string
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           imgs:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                           likeCount:
+ *                             type: integer
+ *                           commentCount:
+ *                             type: integer
+ *                           shareCount:
+ *                             type: integer
+ *                           repostCount:
+ *                             type: integer
+ *                       reply:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           text:
+ *                             type: string
+ *                           postedBy:
+ *                             type: object
+ *                             properties:
+ *                               _id:
+ *                                 type: string
+ *                               name:
+ *                                 type: string
+ *                               profilePic:
+ *                                 type: string
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           imgs:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                           likeCount:
+ *                             type: integer
+ *                           commentCount:
+ *                             type: integer
+ *                           shareCount:
+ *                             type: integer
+ *                           repostCount:
+ *                             type: integer
+ *       400:
+ *         description: Invalid user ID or request parameters.
+ *       500:
+ *         description: Internal Server Error
+ */
+/**
+ * @swagger
+ * /api/threads/{userId}/reposts:
+ *   get:
+ *     tags: [Threads]
+ *     summary: Get a list of threads reposted by a user
+ *     description: Retrieve a list of threads that a user has reposted, with full details like the original thread.
+ *     parameters:
+ *       - name: userId
+ *         in: path
+ *         description: ID of the user whose reposts are being fetched.
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - name: pageNumber
+ *         in: query
+ *         description: The page number to fetch.
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *       - name: pageSize
+ *         in: query
+ *         description: The number of reposts per page.
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           example: 20
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved the list of reposted threads.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 reposts:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         description: The unique identifier of the reposted thread.
+ *                       text:
+ *                         type: string
+ *                         description: The content of the reposted thread.
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         description: The creation date of the reposted thread.
+ *                       likeCount:
+ *                         type: integer
+ *                         description: Number of likes on the reposted thread.
+ *                       commentCount:
+ *                         type: integer
+ *                         description: Number of comments on the reposted thread.
+ *                       shareCount:
+ *                         type: integer
+ *                         description: Number of shares of the reposted thread.
+ *                       repostCount:
+ *                         type: integer
+ *                         description: Number of reposts of the reposted thread.
+ *                       imgs:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                           format: uri
+ *                           description: The URLs of the images in the reposted thread.
+ *                       postedBy:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             description: The ID of the user who posted the thread.
+ *                           name:
+ *                             type: string
+ *                             description: The name of the user who posted the thread.
+ *                           profilePic:
+ *                             type: string
+ *                             description: URL of the user's profile picture.
+ *       400:
+ *         description: Invalid user ID or request parameters.
+ *       500:
+ *         description: Internal Server Error.
+ */
+
+/**
+ * @swagger
  * /api/threads/reply/{parentId}:
  *   post:
  *     summary: Create or reply to a thread with images

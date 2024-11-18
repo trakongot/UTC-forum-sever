@@ -73,14 +73,14 @@ const signinUser = async (req, res) => {
             return res.status(400).json({ error: "Invalid username or password" });
         }
 		// Kiểm tra xem người dùng có cần xác thực không
-        if (!user.emailVerifiedToken) {
-            // Gửi email xác thực nếu chưa có token
-			//Đặt tên cho action
-            await sendVerificationEmail(user, 'login');
-            return res.status(200).json({
-                message: "Verification link sent to your email. Please check to complete login."
-            });
-        }
+        // if (!user.emailVerifiedToken) {
+        //     // Gửi email xác thực nếu chưa có token
+		// 	//Đặt tên cho action
+        //     await sendVerificationEmail(user, 'login');
+        //     return res.status(200).json({
+        //         message: "Verification link sent to your email. Please check to complete login."
+        //     });
+        // }
     } catch (error) {
         res.status(500).json({ error: error.message });
         console.log("Error in signinUser: ", error.message);

@@ -5,12 +5,15 @@ import connectDB from "./db/connectDB.js";
 import cookieParser from "cookie-parser";
 import userRoutes from "./routes/userRoutes.js";
 import theardRoutes from "./routes/threadRoutes.js";
+import repostRoutes from "./routes/repostRoutes.js";
+import searchRoutes from "./routes/searchRoutes.js";
 import swaggerUi from 'swagger-ui-express';
 import messageRoutes from "./routes/messageRoutes.js";
 import { v2 as cloudinary } from "cloudinary";
 import { app } from "./socket/socket.js";
 import job from "./cron/cron.js";
 import swaggerSpec from "./utils/config/swagger.js";
+import cors from "cors";
 
 dotenv.config();
 
@@ -27,6 +30,16 @@ cloudinary.config({
 });
 
 // Middlewares
+
+
+// Cấu hình mặc định
+app.use(
+  cors({
+    origin: "http://localhost:3000", // Địa chỉ client React của bạn
+    methods: ["GET", "POST", "PUT", "DELETE"], // Các method được phép
+    credentials: true, // Cho phép gửi cookie hoặc thông tin xác thực
+  })
+);
 app.use(express.json({ limit: "50mb" })); // To parse JSON data in the req.body
 app.use(express.urlencoded({ extended: true })); // To parse form data in the req.body
 app.use(cookieParser());
@@ -36,6 +49,8 @@ app.use("/api/users", userRoutes);
 // app.use("/api/posts", postRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/threads", theardRoutes);
+app.use("/api/repost", repostRoutes);
+app.use("/api/search", searchRoutes);
 
 // API docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

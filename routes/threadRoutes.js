@@ -8,6 +8,8 @@ import {
     getLikes,
     createOrReplyThread,
     repostThread,
+    getRepliesByUser,
+    getRepostsByUser,
 } from "../controllers/threadController.js";
 import multer from "multer";
 import { authenticateUser } from "../middlewares/protectRoute.js";
@@ -28,6 +30,8 @@ router.get("/", getThreads);
 router.get("/:id", getThreadById);
 router.post("/", authenticateUser, upload.array("imgs"), createOrReplyThread);
 router.post("/reply/:parentId?", authenticateUser, upload.array("imgs"), createOrReplyThread);
+router.get("/:userId/replies", getRepliesByUser);
+router.get("/:userId/reposts", getRepostsByUser);
 router.delete("/:id", authenticateUser, deleteThread);
 router.put("/like/:id", authenticateUser, likeUnlikeThread);
 router.put("/hide/:id", authenticateUser, hideThread);
