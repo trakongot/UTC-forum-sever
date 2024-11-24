@@ -26,11 +26,13 @@ const userSchema = mongoose.Schema(
 			default: "",
 		},
 		followers: {
-			type: [String],
+			ref: "User",
+			type: [mongoose.Schema.Types.ObjectId],
 			default: [],
 		},
 		following: {
-			type: [String],
+			ref: "User",
+			type: [mongoose.Schema.Types.ObjectId],
 			default: [],
 		},
 		bio: {
@@ -58,10 +60,11 @@ const userSchema = mongoose.Schema(
 			{
 				type: mongoose.Schema.Types.ObjectId,
 				ref: "Thread",
+				default: [],
 			}
 		],
 		accountStatus: {
-			type: String, 
+			type: String,
 			default: "active",
 			enum: ["active", "temporary_ban", "permanent_ban"],
 		},
@@ -73,6 +76,9 @@ const userSchema = mongoose.Schema(
 			enum: ["user", "moderator", "super_admin"],
 			default: "user",
 		},
+		socialLinks: {
+			type: String,
+		}
 	},
 	{
 		timestamps: true,

@@ -12,7 +12,7 @@ export const loadModelAndCheckImage = async (imagePath) => {
             model = await nsfwjs.load(); // Tải mô hình NSFW
         }
 
-        const imageBuffer = fs.readFileSync(imagePath); 
+        const imageBuffer = fs.readFileSync(imagePath);
         const image = await loadImage(imageBuffer); // Tải ảnh vào canvas
 
         const canvas = createCanvas(image.width, image.height);
@@ -55,13 +55,12 @@ export const loadModelAndCheckImage = async (imagePath) => {
         throw new Error(`Lỗi khi kiểm tra vi phạm ảnh: ${imagePath}`);
     }
 };
-
 export const handleImagesCheckAndUpload = async (imgs) => {
     if (!imgs || imgs.length === 0) return { data: [] };
 
     try {
         const imageChecks = await Promise.all(imgs.map(async (img) => {
-            const violation = await loadModelAndCheckImage(img.path); 
+            const violation = await loadModelAndCheckImage(img.path);
             return { image: img.path, violation };
         }));
 
@@ -103,3 +102,58 @@ export const handleImagesCheckAndUpload = async (imgs) => {
         throw error;
     }
 };
+export const handleImagesAndVideosCheckAndUpload = async (files) => {
+    if (!files || files.length === 0) return { data: [] };
+
+    try {
+        const uploadPromises = files.map(file => {
+            // Kiểm tra MIME Type để xác định đúng file
+            if (file.mimetype.startsWith("image")) {
+                console.log(file.mimetype)
+                return cloudinary.uploader.upload(file.path)
+                    .then(result => {
+                        fs.unlinkSync(file.path); // Xóa ảnh sau khi upload thành công
+                        return result.secure_url;
+                    }).catch(err => {
+                        fs.unlinkSync(file.path); // Xóa ảnh nếu có lỗi
+                        console.error("Error uploading image:", err.message);
+                        throw err;
+                    });
+            }
+
+            if (file.mimetype.startsWith("video")) {
+                return new Promise((resolve, reject) => {
+                    cloudinary.v2.uploader.upload(
+                        file.path,
+                        {
+                            folder: '',
+                            resource_type: 'video'
+                        },
+                        (error, result) => {
+                            if (error) {
+                                fs.unlinkSync(file.path);
+                                console.error("Error uploading video:", error.message);
+                                reject(error);
+                            } else {
+                                fs.unlinkSync(file.path);
+                                console.log("Video uploaded successfully:", result.secure_url);
+                                resolve(result.secure_url);
+                            }
+                        }
+                    );
+                });
+            }
+
+            return Promise.reject(new Error(`Unsupported file type: ${file.mimetype}`));
+        });
+
+        const fileUrls = await Promise.all(uploadPromises);
+        return { data: fileUrls };
+
+    } catch (error) {
+        console.error("Error processing files:", error.message);
+        throw error;
+    }
+};
+
+

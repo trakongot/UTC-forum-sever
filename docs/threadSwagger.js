@@ -107,7 +107,7 @@
  *                 type: string
  *                 description: The ID of the user creating the thread.
  *                 example: "671bd06ac8f3562b0371f32c"
- *               imgs:
+ *               media:
  *                 type: array
  *                 items:
  *                   type: string
@@ -127,7 +127,7 @@
  *                 text:
  *                   type: string
  *                   description: The content of the thread.
- *                 imgs:
+ *                 media:
  *                   type: array
  *                   items:
  *                     type: string
@@ -167,7 +167,7 @@
  *                 type: string
  *                 description: The content of the thread.
  *                 example: "This is a new thread or a reply."
- *               imgs:
+ *               media:
  *                 type: array
  *                 items:
  *                   type: string
@@ -187,7 +187,7 @@
  *                 text:
  *                   type: string
  *                   description: The content of the thread.
- *                 imgs:
+ *                 media:
  *                   type: array
  *                   items:
  *                     type: string
@@ -341,7 +341,7 @@
  *                         type: string
  *                       text:
  *                         type: string
- *                       imgs:
+ *                       media:
  *                         type: array
  *                         items:
  *                           type: string
@@ -446,4 +446,99 @@
  *                 error:
  *                   type: string
  *                   example: 'Internal Server Error'
+ */
+
+/**
+ * @swagger
+ * /api/threads/{id}/like:
+ *   post:
+ *     tags: [Threads]
+ *     summary: Get Thread by ID
+ *     description: Retrieve detailed information about a thread by its ID, including metadata like likes and followers count.
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the thread to retrieve
+ *         schema:
+ *           type: string
+ *       - name: Authorization
+ *         in: header
+ *         required: false
+ *         description: Bearer token for user authentication
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Thread details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   description: ID of the thread
+ *                 title:
+ *                   type: string
+ *                   description: Title of the thread
+ *                 content:
+ *                   type: string
+ *                   description: Content of the thread
+ *                 isHidden:
+ *                   type: boolean
+ *                   description: Whether the thread is hidden
+ *                 isLiked:
+ *                   type: boolean
+ *                   description: Whether the current user has liked the thread
+ *                 likeCount:
+ *                   type: integer
+ *                   description: Total number of likes on the thread
+ *                 postedBy:
+ *                   type: object
+ *                   description: Information about the user who posted the thread
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: ID of the user
+ *                     name:
+ *                       type: string
+ *                       description: Name of the user
+ *                     profilePic:
+ *                       type: string
+ *                       description: URL of the user's profile picture
+ *                     bio:
+ *                       type: string
+ *                       description: Short bio of the user
+ *                     username:
+ *                       type: string
+ *                       description: Username of the user
+ *                     followers:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: List of user IDs who follow the user
+ *                 followerCount:
+ *                   type: integer
+ *                   description: Number of followers of the user who posted the thread
+ *       404:
+ *         description: Thread not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Thread not found
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Internal Server Error
  */

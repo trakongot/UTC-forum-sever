@@ -5,6 +5,9 @@ import connectDB from "./db/connectDB.js";
 import cookieParser from "cookie-parser";
 import userRoutes from "./routes/userRoutes.js";
 import theardRoutes from "./routes/threadRoutes.js";
+import repostRoutes from "./routes/repostRoutes.js";
+import searchRoutes from "./routes/searchRoutes.js";
+
 import swaggerUi from 'swagger-ui-express';
 import messageRoutes from "./routes/messageRoutes.js";
 import { v2 as cloudinary } from "cloudinary";
@@ -21,15 +24,15 @@ job.start();
 const PORT = process.env.PORT || 5000;
 // const __dirname = path.resolve();
 app.use(cors({
-	origin: ['http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:5500'],
-	methods: ['GET', 'POST', 'PUT', 'DELETE'],
-	allowedHeaders: ['Content-Type', 'Authorization'],
-	credentials: true,
+    origin: ['http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:5500'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
 }));
 cloudinary.config({
-	cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-	api_key: process.env.CLOUDINARY_API_KEY,
-	api_secret: process.env.CLOUDINARY_API_SECRET,
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 // Middlewares
@@ -42,7 +45,8 @@ app.use("/api/users", userRoutes);
 // app.use("/api/posts", postRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/threads", theardRoutes);
-
+app.use("/api/repost", repostRoutes);
+app.use("/api/search", searchRoutes);
 // API docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -58,11 +62,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // }
 
 
-
 app.listen(PORT, () => {
-	console.log('\x1b[32m%s\x1b[0m', '\n=======================================');
-	console.log('\x1b[36m%s\x1b[0m', '🚀 Server is running: ', `\x1b[34mhttp://localhost:${PORT}\x1b[0m`);
-	console.log('\x1b[36m%s\x1b[0m', '📄 API Docs: ', `\x1b[33mhttp://localhost:${PORT}/api-docs\x1b[0m`);
-	console.log('\x1b[32m%s\x1b[0m', '=======================================\n');
+    console.log('\x1b[32m%s\x1b[0m', '\n=======================================');
+    console.log('\x1b[36m%s\x1b[0m', '🚀 Server is running: ', `\x1b[34mhttp://localhost:${PORT}\x1b[0m`);
+    console.log('\x1b[36m%s\x1b[0m', '📄 API Docs: ', `\x1b[33mhttp://localhost:${PORT}/api-docs\x1b[0m`);
+    console.log('\x1b[32m%s\x1b[0m', '=======================================\n');
 });
-

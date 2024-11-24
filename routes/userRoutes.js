@@ -11,7 +11,7 @@ import {
 	updateUserOnboarded,
 	getUserByCookies,
 } from "../controllers/userController.js";
-import { authenticateUser } from "../middlewares/authMiddleware.js";
+import { authenticateUser, authenticateUserWithOptionalCookie } from "../middlewares/authMiddleware.js";
 import { fileUploadMiddleware as multer } from "../middlewares/fileUploadMiddleware.js";
 
 const router = express.Router();

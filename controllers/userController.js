@@ -3,17 +3,18 @@ import bcrypt from "bcryptjs";
 import generateTokenAndSetCookie from "../utils/helpers/generateTokenAndSetCookie.js";
 import mongoose from "mongoose";
 import { checkBadWords } from "../utils/helpers/checkBadword.js";
-import { handleImagesCheckAndUpload } from "../utils/helpers/handleImagesCheckAndUpload.js";
+import { handleImagesCheckAndUpload } from "../utils/helpers/handleMediasCheckAndUpload.js";
 
 export const getUserById = async (req, res) => {
 	const { id } = req.params;
-
 	try {
 		if (!mongoose.Types.ObjectId.isValid(id)) {
 			return res.status(400).json({ error: "Invalid user ID format" });
 		}
-
-		const user = await User.findById(id).select("-password -updatedAt");
+		const user = await User.findOne({ _id: new mongoose.Types.ObjectId(id) }).select("-password -updatedAt");
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
 
 		if (!user) return res.status(404).json({ error: "User not found" });
 
@@ -193,7 +194,10 @@ export const signinUser = async (req, res) => {
 export const logoutUser = (req, res) => {
 	try {
 		res.cookie("jwt", "", { maxAge: 1 });
-		res.status(200).json({ message: "User logged out successfully" });
+		res.status(200).json({
+			success: true,
+			message: "User logged out successfully"
+		});
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 		console.log("Error in signupUser: ", err.message);
@@ -385,7 +389,7 @@ export const updateUser = async (req, res) => {
 		user.name = name;
 		user.username = username;
 		user.bio = bio || user.bio;
-		user.profilePic = imgUrl;
+		if (imgUrl) user.profilePic = imgUrl;
 
 		await user.save();
 

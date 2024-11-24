@@ -10,7 +10,7 @@ const threadSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    imgs: {
+    media: {
         type: [String],
         default: [],
     },
@@ -21,7 +21,7 @@ const threadSchema = new mongoose.Schema({
     },
     likeCount: {
         type: Number,
-        default: 0
+        default: 0,
     },
     commentCount: {
         type: Number,
@@ -40,19 +40,36 @@ const threadSchema = new mongoose.Schema({
         default: Date.now,
     },
     parentId: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Thread",
+        default: null,
     },
-    children: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Thread",
-        },
-    ],
     isHidden: {
         type: Boolean,
         default: false,
     }
 });
+
+threadSchema.pre('save', function (next) {
+    this.likeCount = this.likes.length;
+    next();
+});
+
+threadSchema.methods.addComment = async function (commentId) {
+    const parentThread = await this.model("Thread").findById(this.parentId);
+    if (parentThread) {
+        parentThread.commentCount += 1;
+        await parentThread.save();
+    }
+};
+
+threadSchema.methods.removeComment = async function (commentId) {
+    const parentThread = await this.model("Thread").findById(this.parentId);
+    if (parentThread) {
+        parentThread.commentCount -= 1;
+        await parentThread.save();
+    }
+};
 
 const Thread = mongoose.models.Thread || mongoose.model("Thread", threadSchema);
 

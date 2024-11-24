@@ -1,36 +1,29 @@
 import Thread from "../models/threadModel.js";
 import User from "../models/userModel.js";
 import { checkBadWords } from "../utils/helpers/checkBadword.js";
-import { handleImagesCheckAndUpload } from "../utils/helpers/handleImagesCheckAndUpload.js";
+import { handleImagesAndVideosCheckAndUpload } from "../utils/helpers/handleMediasCheckAndUpload.js";
 
 export const createOrReplyThread = async (req, res) => {
     try {
         const { text } = req.body;
         const userId = req.user._id;
-        const { parentId } = req.params;
-        const imgs = req.files;
-        // if (!postedBy) {
-        //     return res.status(400).json({ error: "You are not owner post" });
-        // }
-        const user = await User.findById(userId);
-        if (!user) return res.status(404).json({ error: "User not found" });
-        // if (user._id.toString() !== userId.toString()) {
-        //     return res.status(401).json({ error: "Unauthorized to create post" });
-        // }
+        const { id: parentId } = req.params; // ID của thread cha (nếu có)
+        const media = req.files;
         if (!text) return res.status(400).json({ error: "Text field is required" });
         if (text.length > 500) return res.status(400).json({ error: "Text must be less than 500 characters" });
 
-        const thread = parentId ? await Thread.findOne({ _id: threadId, isHidden: false }) : null;
-        if (parentId && !thread) return res.status(404).json({ error: "Parent thread not found" });
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
         const badWords = checkBadWords(text);
         if (badWords.length > 0) {
             return res.status(400).json({ error: "Text contains inappropriate language", badWords });
         }
 
-        let imgUrls = [];
+        let mediaUrls = [];
 
-        if (imgs && imgs.length > 0) {
-            const result = await handleImagesCheckAndUpload(imgs);
+        if (media && media.length > 0) {
+            const result = await handleImagesAndVideosCheckAndUpload(media);
             if (result.error) {
                 return res.status(400).json({
                     error: result.error,
@@ -38,23 +31,26 @@ export const createOrReplyThread = async (req, res) => {
                     details: result.details,
                 });
             }
-            imgUrls = result.data;
+            mediaUrls = result.data;
         }
 
         const newThread = new Thread({
             postedBy: userId,
             text,
             parentId: parentId || null,
-            imgs: imgUrls || [],
+            media: mediaUrls || [],
         });
 
         await newThread.save();
 
+        // Nếu là reply (có parentId), dùng addComment
         if (parentId) {
-            await Thread.findByIdAndUpdate(parentId, {
-                $push: { children: newThread._id },
-                $inc: { commentCount: 1 },
-            });
+            const parentThread = await Thread.findById(parentId);
+            if (!parentThread) {
+                return res.status(404).json({ error: "Parent thread not found" });
+            }
+
+            await parentThread.addComment(newThread._id);
         }
 
         res.status(201).json(newThread);
@@ -63,146 +59,210 @@ export const createOrReplyThread = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-
 export const getReplies = async (req, res) => {
     try {
-        const { id: parentId } = req.params;
         const { pageNumber = 1, pageSize = 20 } = req.query;
         const skipAmount = (pageNumber - 1) * pageSize;
-
-        if (!parentId) {
-            return res.status(400).json({ error: "Parent thread ID is required" });
-        }
-
+        const userId = req?.user?._id.toString();
+        const { id: parentId } = req.params;
         const parentThread = await Thread.findById(parentId);
         if (!parentThread) {
             return res.status(404).json({ error: "Parent thread not found" });
         }
 
-        const replies = await Thread.aggregate([
-            { $match: { parentId: parentId } },
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: 'postedBy',
-                    foreignField: '_id',
-                    as: 'postedByInfo'
-                }
-            },
-            {
-                $unwind: {
-                    path: '$postedByInfo',
-                    preserveNullAndEmptyArrays: true
-                }
-            },
-            {
-                $addFields: {
-                    postedBy: {
-                        name: '$postedByInfo.name',
-                        profilePic: '$postedByInfo.profilePic',
-                        _id: '$postedByInfo._id'
-                    }
-                }
-            },
-            {
-                $project: {
-                    likes: 0,
-                    __v: 0,
-                    parentId: 0,
-                    children: 0,
-                    'postedByInfo': 0
-                }
-            },
-            { $sort: { createdAt: -1 } },
-            { $skip: skipAmount },
-            { $limit: parseInt(pageSize) }
-        ]);
-
-        const totalRepliesCount = await Thread.countDocuments({ parentId });
-        const isNext = totalRepliesCount > skipAmount + replies.length;
-
-        res.status(200).json({ success: true, threads: replies, isNext });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
-};
-
-
-export const getThreads = async (req, res) => {
-    try {
-        const { pageNumber = 1, pageSize = 20 } = req.query;
-        const skipAmount = (pageNumber - 1) * pageSize;
-        const userId = req?.user?._id;
-
-        let followingIds = [];
-        let viewedThreads = [];
-
-        if (userId) {
-            const { following = [], viewedThreads: viewed = [] } = await User.findById(userId)
-                .select("viewedThreads following")
-                .lean() || {};
-            followingIds = following;
-            viewedThreads = viewed;
-        }
-        const threadConditions = {
-            parentId: null,
-            isHidden: false,
-            ...(viewedThreads.length ? { _id: { $nin: viewedThreads } } : {})
-        };
-
-        const threads = await Thread.find(threadConditions)
-            .populate({
-                path: 'postedBy',
-                select: '_id name profilePic',
-            })
+        const baseQuery = { parentId, isHidden: false };
+        const threadsQuery = Thread.find(baseQuery)
+            .populate({ path: 'postedBy', select: '_id name profilePic bio username followers' })
             .sort({ createdAt: -1 })
             .skip(skipAmount)
             .limit(parseInt(pageSize))
             .select('-__v -isHidden')
             .lean();
+
+        if (!userId) {
+            const threads = await threadsQuery;
+            threads.forEach(thread => {
+                thread.postedBy.isFollowed = false;
+                thread.postedBy.followerCount = thread.postedBy?.followers?.length ?? 0;
+                thread.isLiked = false;
+                delete thread.postedBy.followers;
+            });
+
+            const totalThreads = await Thread.countDocuments(baseQuery);
+            return res.status(200).json({
+                success: true,
+                threads,
+                isNext: totalThreads > skipAmount + threads.length
+            });
+        }
+
+        const user = await User.findById(userId).select("viewedThreads following").lean();
+        const followingIds = new Set(user.following?.map(id => id.toString()) || []);
+
+        const threads = await threadsQuery;
         threads.forEach(thread => {
-            thread.isFollowed = followingIds.includes(thread.postedBy._id);
-            thread.isLiked = Array.isArray(thread.likes) && thread.likes.includes(userId);
+            thread.postedBy.isFollowed = followingIds.has(thread.postedBy._id.toString());
+            thread.postedBy.followerCount = thread.postedBy?.followers?.length ?? 0;
+            thread.isLiked = thread.likes?.some(like => like.toString() === userId);
+            delete thread.postedBy.followers;
         });
 
-        const totalThreadsCount = await Thread.countDocuments(threadConditions);
-        const isNext = totalThreadsCount > skipAmount + threads.length;
-
-        res.status(200).json({
+        const totalThreads = await Thread.countDocuments(baseQuery);
+        return res.status(200).json({
             success: true,
             threads,
-            isNext
+            isNext: totalThreads > skipAmount + threads.length
         });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+export const getThreads = async (req, res) => {
+    try {
+        const { pageNumber = 1, pageSize = 20 } = req.query;
+        const skipAmount = (pageNumber - 1) * pageSize;
+        const userId = req?.user?._id?.toString();
+
+        const baseQuery = { parentId: null, isHidden: false };
+        const threadsQuery = Thread.find(baseQuery)
+            .populate({ path: 'postedBy', select: '_id name profilePic bio username followers' })
+            .sort({ createdAt: -1 })
+            .skip(skipAmount)
+            .limit(parseInt(pageSize))
+            .select('-__v -isHidden')
+            .lean();
+
+        if (!userId) {
+            const threads = await threadsQuery;
+            threads.forEach(thread => {
+                thread.postedBy.isFollowed = false;
+                thread.postedBy.followerCount = thread.postedBy?.followers?.length ?? 0;
+                thread.isLiked = false;
+                delete thread.postedBy.followers;
+            });
+
+            const totalThreads = await Thread.countDocuments(baseQuery);
+            return res.status(200).json({
+                success: true,
+                threads,
+                isNext: totalThreads > skipAmount + threads.length
+            });
+        }
+
+        const user = await User.findById(userId).select("viewedThreads following").lean();
+        const followingIds = new Set(user.following?.map(id => id.toString()) || []);
+        const viewedThreads = new Set(user.viewedThreads?.map(id => id.toString()) || []);
+
+        const threadConditions = {
+            ...baseQuery,
+            ...(viewedThreads.size > 0 && { _id: { $nin: Array.from(viewedThreads) } })
+        };
+
+        const threads = await threadsQuery.where(threadConditions);
+        threads.forEach(thread => {
+            thread.postedBy.isFollowed = followingIds.has(thread.postedBy._id.toString());
+            thread.postedBy.followerCount = thread.postedBy?.followers?.length ?? 0;
+            thread.isLiked = thread.likes?.some(like => like.toString() === userId);
+            delete thread.postedBy.followers;
+        });
+
+        // if (threads.length > 0) {
+        //     const threadIds = threads.map(thread => thread._id.toString());
+        //     await User.findByIdAndUpdate(
+        //         userId,
+        //         { $addToSet: { viewedThreads: { $each: threadIds } } },
+        //         { new: true }
+        //     );
+        // }
+
+        const totalThreads = await Thread.countDocuments(baseQuery);
+        return res.status(200).json({
+            success: true,
+            threads,
+            isNext: totalThreads > skipAmount + threads.length
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+export const getThreadsByUser = async (req, res) => {
+    try {
+        const { pageNumber = 1, pageSize = 20 } = req.query;
+        const { userId: authorId } = req.params;
+        const userId = req.user?._id?.toString();
+
+        if (!authorId) {
+            return res.status(400).json({ error: "Author ID is required" });
+        }
+
+        const parsedPageSize = parseInt(pageSize);
+        const skipAmount = (pageNumber - 1) * parsedPageSize;
 
 
+        const threads = await Thread.find({
+            postedBy: authorId,
+            isHidden: false,
+        })
+            .populate({ path: 'postedBy', select: '_id name profilePic username' })
+            .sort({ createdAt: -1 })
+            .skip(skipAmount)
+            .limit(parsedPageSize)
+            .select('-__v -isHidden')
+            .lean();
+
+
+        const updatedThreads = threads.map(thread => ({
+            ...thread,
+            isLiked: thread.likes?.some(like => like.toString() === userId),
+        }));
+
+        const totalThreads = await Thread.countDocuments({ postedBy: authorId, isHidden: false });
+        const isNext = totalThreads > skipAmount + updatedThreads.length;
+
+        return res.status(200).json({
+            success: true,
+            threads: updatedThreads,
+            isNext,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
 export const getThreadById = async (req, res) => {
     try {
         const threadId = req.params.id;
-        const userId = req?.user?._id.toString();
+        const userId = req?.user?._id?.toString();
+
         const thread = await Thread.findOne({
-            _id: threadId, isHidden: false
+            _id: threadId,
+            isHidden: false
         })
             .select('-__v -parentId -children')
-            .populate("postedBy", "_id name username profilePic")
-            .exec();
-        if (userId && Array.isArray(thread?.likes))
-            thread.isLiked = thread.likes.includes(userId);
+            .populate({ path: 'postedBy', select: '_id name profilePic bio username followers' })
+            .lean();
+
         if (!thread) {
             return res.status(404).json({ error: "Thread not found" });
         }
-        res.status(200).json(thread);
+
+        const isLiked = thread.likes?.some(like => like.toString() === userId) || false;
+        const followerCount = thread.postedBy?.followers?.length || 0;
+
+        delete thread.likes;
+
+        return res.status(200).json({
+            ...thread,
+            isLiked,
+            followerCount
+        });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Internal Server Error" });
+        return res.status(500).json({ error: "Internal Server Error" });
     }
 };
-
 export const deleteThread = async (req, res) => {
     try {
         const thread = await Thread.findOne({
@@ -223,70 +283,39 @@ export const deleteThread = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-
 export const likeUnlikeThread = async (req, res) => {
     try {
         const { id: threadId } = req.params;
         const userId = req.user._id;
 
-        const thread = await Thread.findOne({
-            _id: req.params.id, isHidden: false
-        })
+        const thread = await Thread.findOne({ _id: threadId, isHidden: false });
         if (!thread) {
             return res.status(404).json({ error: "Thread not found" });
         }
 
-        // Check if the user has already liked the thread
         const userLikedThread = thread.likes.includes(userId);
 
-        if (userLikedThread) {
-            if (thread.likeCount > 0) {
-                await Thread.updateOne(
-                    { _id: threadId },
-                    {
-                        $pull: { likes: userId },
-                        $inc: { likeCount: -1 }
-                    }
-                );
-                res.status(200).json({
-                    success: true,
-                    message: "Thread unliked successfully",
-                    likeCount: thread.likeCount - 1
-                });
-            } else {
-                await Thread.updateOne(
-                    { _id: threadId },
-                    {
-                        $pull: { likes: userId },
-                    }
-                );
-                res.status(200).json({
-                    success: true,
-                    message: "Thread already has zero likes",
-                    likeCount: thread.likeCount
-                });
-            }
-        } else {
+        const updateQuery = userLikedThread
+            ? { $pull: { likes: userId }, $inc: { likeCount: -1 } }
+            : { $addToSet: { likes: userId }, $inc: { likeCount: 1 } };
 
-            await Thread.updateOne(
-                { _id: threadId },
-                {
-                    $addToSet: { likes: userId },
-                    $inc: { likeCount: 1 }
-                }
-            );
-            res.status(200).json({
-                success: true,
-                message: "Thread liked successfully",
-                likeCount: thread.likeCount + 1
-            });
-        }
+        await Thread.updateOne({ _id: threadId }, updateQuery);
+
+        const likeCount = thread.likeCount + (userLikedThread ? -1 : 1);
+        const message = userLikedThread
+            ? "Thread unliked successfully"
+            : "Thread liked successfully";
+
+        return res.status(200).json({
+            success: true,
+            message,
+            likeCount: Math.max(likeCount, 0), // Ensure like count doesn't go below zero
+        });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Internal Server Error" });
+        return res.status(500).json({ error: "Internal Server Error" });
     }
 };
-
 export const getLikes = async (req, res) => {
     try {
         const { id: threadId } = req.params;
@@ -305,7 +334,6 @@ export const getLikes = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-
 export const hideThread = async (req, res) => {
     try {
         const { id: threadId } = req.params;
@@ -335,7 +363,6 @@ export const hideThread = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-
 export const shareThread = async (req, res) => {
     try {
         const { id: threadId } = req.params;
@@ -358,7 +385,6 @@ export const shareThread = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-
 export const repostThread = async (req, res) => {
     try {
         const userId = req.user._id
@@ -381,32 +407,4 @@ export const repostThread = async (req, res) => {
     }
 };
 
-export const getThreadsByUser = async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const { pageNumber = 1, pageSize = 20 } = req.query;
-        const skipAmount = (pageNumber - 1) * pageSize;
 
-        const result = await Thread.find({
-            postedBy: userId,
-            isHidden: false
-        })
-            .select('-__v -parentId -children -postedByInfo')
-            .populate({
-                path: 'postedBy',
-                select: '_id name profilePic',
-            }).sort({ createdAt: -1 })
-            .skip(skipAmount)
-            .limit(parseInt(pageSize));
-        if (result.length === 0) {
-            return res.status(200).json({ success: true, threads: [], isNext: false });
-        }
-        const totalRepliesCount = await Thread.countDocuments({ postedBy: userId });
-        const isNext = totalRepliesCount > skipAmount + result.length;
-
-        res.status(200).json({ success: true, threads: result, isNext: isNext });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
-};
