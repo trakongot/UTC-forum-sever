@@ -1,18 +1,14 @@
 import Thread from "../models/threadModel.js";
 import User from "../models/userModel.js";
-<<<<<<< HEAD
 import Notification from "../models/notificationModel.js";
 
 import { v2 as cloudinary } from "cloudinary";
 import { getRecipientSocketId, io } from "../socket/socket.js";
 
-const createOrReplyThread = async (req, res) => {
-=======
 import { checkBadWords } from "../utils/helpers/checkBadword.js";
 import { handleImagesCheckAndUpload } from "../utils/helpers/handleImagesCheckAndUpload.js";
 
 export const createOrReplyThread = async (req, res) => {
->>>>>>> origin/main
     try {
         const { text } = req.body;
         const userId = req.user._id;
@@ -170,10 +166,10 @@ export const getThreads = async (req, res) => {
             .limit(parseInt(pageSize))
             .select('-__v -isHidden')
             .lean();
-        threads.forEach(thread => {
-            thread.isFollowed = followingIds.includes(thread.postedBy._id);
-            thread.isLiked = Array.isArray(thread.likes) && thread.likes.includes(userId);
-        });
+            threads.forEach(thread => {
+                thread.isFollowed = followingIds.includes(thread.postedBy._id.toString());
+                thread.isLiked = Array.isArray(thread.likes) && thread.likes.map(id => id.toString()).includes(userId.toString());
+            });
 
         const totalThreadsCount = await Thread.countDocuments(threadConditions);
         const isNext = totalThreadsCount > skipAmount + threads.length;
@@ -194,12 +190,15 @@ export const getThreadById = async (req, res) => {
     try {
         const threadId = req.params.id;
         const userId = req?.user?._id.toString();
+        console.log(userId) ;
+        console.log(threadId) ;
         const thread = await Thread.findOne({
             _id: threadId, isHidden: false
         })
             .select('-__v -parentId -children')
             .populate("postedBy", "_id name username profilePic")
             .exec();
+            console.log(thread); 
         if (userId && Array.isArray(thread?.likes))
             thread.isLiked = thread.likes.includes(userId);
         if (!thread) {
@@ -235,46 +234,40 @@ export const deleteThread = async (req, res) => {
 
 export const likeUnlikeThread = async (req, res) => {
     try {
-        const { id: threadId } = req.params;
-        const userId = req.user._id;
-<<<<<<< HEAD
-        
-        const thread = await Thread.findById(threadId);
-        const recipientId  = await User.findById(thread.postedBy);   
-=======
+        const { id: threadId } = req.params; // Lấy ID bài viết từ URL
+        const userId = req.user._id; // Lấy ID người dùng từ thông tin xác thực (req.user)
 
-        const thread = await Thread.findOne({
-            _id: req.params.id, isHidden: false
-        })
->>>>>>> origin/main
+        const thread = await Thread.findById(threadId); // Tìm bài viết theo ID
         if (!thread) {
-            return res.status(404).json({ error: "Thread not found" });
+            return res.status(404).json({ error: "Thread not found" }); // Nếu không tìm thấy bài viết
         }
 
-        // Check if the user has already liked the thread
-        const userLikedThread = thread.likes.includes(userId);
-        console.log(threadId , userId , "hahaahahha");
+        const recipientId = await User.findById(thread.postedBy); // Lấy ID người tạo bài viết (chủ sở hữu)
         let notification = await Notification.findOne({
             thread: threadId,
-             user: userId, // Nếu trường `User` trong `Notification` là ObjectId của `userId`
-            // type: "like"
+            user: userId,
+            type: "like", // Tìm thông báo "like" của người dùng này đối với bài viết
         });
-        console.log(notification,"hehehehe")
+
+        // Kiểm tra nếu người dùng đã thích bài viết
+        const userLikedThread = thread.likes.includes(userId);
         if (userLikedThread) {
+            // Nếu người dùng đã thích bài viết, bỏ thích
             if (thread.likeCount > 0) {
                 await Thread.updateOne(
                     { _id: threadId },
                     {
-                        $pull: { likes: userId },
-                        $inc: { likeCount: -1 }
+                        $pull: { likes: userId }, // Xóa người dùng khỏi danh sách likes
+                        $inc: { likeCount: -1 }, // Giảm số lượng like
                     }
                 );
                 res.status(200).json({
                     success: true,
                     message: "Thread unliked successfully",
-                    likeCount: thread.likeCount - 1
+                    likeCount: thread.likeCount - 1,
                 });
             } else {
+                // Nếu bài viết đã không còn lượt thích, chỉ xóa người dùng khỏi danh sách likes
                 await Thread.updateOne(
                     { _id: threadId },
                     {
@@ -284,45 +277,50 @@ export const likeUnlikeThread = async (req, res) => {
                 res.status(200).json({
                     success: true,
                     message: "Thread already has zero likes",
-                    likeCount: thread.likeCount
+                    likeCount: thread.likeCount,
                 });
             }
-            const result = await Notification.deleteOne({
-                thread: threadId,
-                user: userId,
-                type: "like"
-            });
-                
-        } else {
 
+            // Xóa thông báo "like" nếu đã có
+            if (notification) {
+                await Notification.deleteOne({
+                    thread: threadId,
+                    user: userId,
+                    type: "like",
+                });
+            }
+        } else {
+            // Nếu người dùng chưa thích bài viết, thêm thích vào bài viết
             await Thread.updateOne(
                 { _id: threadId },
                 {
-                    $addToSet: { likes: userId },
-                    $inc: { likeCount: 1 }
+                    $addToSet: { likes: userId }, // Thêm người dùng vào danh sách likes
+                    $inc: { likeCount: 1 }, // Tăng số lượng like
                 }
             );
             res.status(200).json({
                 success: true,
                 message: "Thread liked successfully",
-                likeCount: thread.likeCount + 1
+                likeCount: thread.likeCount + 1,
             });
 
+            // Tạo thông báo "like" nếu chưa có
             if (!notification) {
                 notification = new Notification({
-                    user: userId,
-                    type: "like",
-                    thread: threadId
+                    user: userId, // Người gửi thông báo
+                    type: "like", // Loại thông báo là "like"
+                    content: threadId, // ID của bài viết
+                    thread: threadId, // ID của bài viết
+                    target: recipientId._id, // Người nhận thông báo (chủ sở hữu bài viết)
                 });
-                await notification.save();
+                await notification.save(); // Lưu thông báo vào cơ sở dữ liệu
             }
-            console.log(notification);
 
-
-		    const recipientSocketId = getRecipientSocketId(recipientId._id);
-            io.to(recipientSocketId).emit('notification', {
+            // Gửi thông báo cho người nhận qua socket
+            const recipientSocketId = getRecipientSocketId(recipientId._id);
+            io.to(recipientSocketId).emit("notification", {
                 threadId,
-                action: 'like',
+                action: "like",
                 userId,
             });
         }

@@ -6,13 +6,15 @@ const getNotifications = async (req, res) => {
         const userId = req.user._id;
 
         const notificationConditions = {
-            user : userId
-        }
-        const notifications = await Notification.aggregate([
-        
-            { $match:  notificationConditions  },
-            { $sort: { createdAt: -1 } },
-        ]);
+            target : userId
+        }   
+        const notifications = await Notification.find({ target: userId })
+        .sort({ createdAt: -1 }) // Sắp xếp theo thời gian tạo
+        .populate("thread") // Liên kết với thread, có thể thay thế với các trường bạn cần
+        .populate("target", "name profilePic")
+        .populate("user", "name profilePic") // Liên kết với user và chỉ lấy các trường cần thiết (ví dụ: name, profilePic)
+         // Liên kết với user và chỉ lấy các trường cần thiết (ví dụ: name, profilePic)
+        console.log(notifications,)
         res.status(200).json({ success: true, notifications });
     }
     catch(err)

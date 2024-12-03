@@ -13,7 +13,7 @@
         },
         content: {
             type: mongoose.Schema.Types.ObjectId,
-            refPath: "contentType",
+            refPath: "type",
         },
         createdAt: {
             type: Date,
@@ -26,6 +26,10 @@
         thread: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Thread", // Liên kết tới chủ đề, nếu có
+        },
+        target: { // Đây là người hoặc bài viết được nhắm tới
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User", // Hoặc "Post" nếu liên quan đến bài viết
         },
     });
 

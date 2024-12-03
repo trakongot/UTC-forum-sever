@@ -7,9 +7,12 @@ import userRoutes from "./routes/userRoutes.js";
 import theardRoutes from "./routes/threadRoutes.js";
 
 import swaggerUi from 'swagger-ui-express';
-rigin/main
 import messageRoutes from "./routes/messageRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+
+
 import { v2 as cloudinary } from "cloudinary";
 import { app } from "./socket/socket.js";
 import job from "./cron/cron.js";

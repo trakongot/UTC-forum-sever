@@ -10,6 +10,8 @@ import {
 	freezeAccount,
 	updateUserOnboarded,
 	getUserByCookies,
+	getTop4Follow,
+	getUsersIAmFollowing
 } from "../controllers/userController.js";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
@@ -34,6 +36,10 @@ router.put("/:id/freeze", authenticateUser, freezeAccount); // Freeze a user acc
 
 // Other Info
 router.get("/suggested", authenticateUser, getSuggestedUsers); // Get suggested users for following
+router.get("/suggested/top4FollowersUser", authenticateUser, getTop4Follow); // Get user details by cookies
+router.get("/suggested/usersIamFollow", authenticateUser, getUsersIAmFollowing); // Get user details by cookies
+
+
 
 
 
