@@ -8,7 +8,7 @@ import{
     toggleIsReadNotification
 }from "../controllers/notificationController.js" ; 
 
-router.get('' , protectRoute  ,getNotifications) ;
+router.get('/' , protectRoute  ,getNotifications) ;
 router.put('/toggleIsRead/:id' , protectRoute  ,toggleIsReadNotification) ; 
 
 export  default router ; 

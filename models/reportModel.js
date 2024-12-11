@@ -12,7 +12,7 @@ const reportSchema = new mongoose.Schema({
     },
     contentType: {
         type: String,
-        enum: ["Comment",  "User"],
+        enum: ["User","Thread"],
     },
     reason: {
         type: String,
@@ -26,6 +26,15 @@ const reportSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now,
+    },
+    adminAction: {
+        type: String,
+        enum: ["suspendAccount","hideThread", "rejected", null], // Approved: Đồng ý, Rejected: Từ chối
+        default: null,
+    },
+    adminNote: {
+        type: String, // Ghi chú của admin, nếu có
+        default: "",
     },
 });
 

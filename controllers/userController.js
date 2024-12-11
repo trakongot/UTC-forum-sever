@@ -508,7 +508,6 @@ export const getTop4Follow = async (req, res) => {
       .select("-password") // Không trả về mật khẩu
       .sort({ followers: -1 }) // Sắp xếp theo số lượng người theo dõi
       .limit(4); // Giới hạn 4 người dùng
-    console.log(users,"hahahahahaha==");
     if (users.length === 0) {
       return res.status(404).json({ message: "No suggested users found" });
     }
