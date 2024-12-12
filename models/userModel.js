@@ -66,7 +66,7 @@ const userSchema = mongoose.Schema(
 		accountStatus: {
 			type: String,
 			default: "active",
-			enum: ["active", "temporary_ban", "permanent_ban"],
+			enum: ["active", "inactive", "temporary_ban", "permanent_ban"],
 		},
 		banExpiration: {
 			type: Date,
@@ -78,7 +78,8 @@ const userSchema = mongoose.Schema(
 		},
 		socialLinks: {
 			type: String,
-		}
+		},
+		lastActive: { type: Date }
 	},
 	{
 		timestamps: true,

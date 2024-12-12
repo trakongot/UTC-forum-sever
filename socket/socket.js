@@ -1,46 +1,75 @@
-import { Server } from "socket.io";
-import http from "http";
-import express from "express";
-import Message from "../models/messageModel.js";
-import Conversation from "../models/conversationModel.js";
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import Conversation from '../models/conversationModel.js';
+import Message from '../models/messageModel.js';
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-	cors: {
-		origin: "http://localhost:3000",
-		methods: ["GET", "POST"],
-	},
+  pingInterval: 25000,
+  pingTimeout: 60000,
+  cors: {
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+  },
 });
 
 export const getRecipientSocketId = (recipientId) => {
-	return userSocketMap[recipientId];
+  return userSocketMap[recipientId];
 };
 
-const userSocketMap = {}; // userId: socketId
+const userSocketMap = new Map();
 
-io.on("connection", (socket) => {
-	console.log("user connected", socket.id);
-	const userId = socket.handshake.query.userId;
+io.on('connection', (socket) => {
+  const userId = socket.handshake.query.userId;
 
-	if (userId != "undefined") userSocketMap[userId] = socket.id;
-	io.emit("getOnlineUsers", Object.keys(userSocketMap));
+  if (userId && userId !== 'undefined') {
+    userSocketMap.set(userId, socket.id);
+  }
 
-	socket.on("markMessagesAsSeen", async ({ conversationId, userId }) => {
-		try {
-			await Message.updateMany({ conversationId: conversationId, seen: false }, { $set: { seen: true } });
-			await Conversation.updateOne({ _id: conversationId }, { $set: { "lastMessage.seen": true } });
-			io.to(userSocketMap[userId]).emit("messagesSeen", { conversationId });
-		} catch (error) {
-			console.log(error);
-		}
-	});
+  io.emit('getOnlineUsers', Array.from(userSocketMap.keys()));
 
-	socket.on("disconnect", () => {
-		console.log("user disconnected");
-		delete userSocketMap[userId];
-		io.emit("getOnlineUsers", Object.keys(userSocketMap));
-	});
+  socket.on('markMessagesAsSeen', async ({ conversationId, userId }) => {
+    try {
+      await Message.updateMany(
+        { conversationId: conversationId, seen: false },
+        { $set: { seen: true } },
+      );
+      await Conversation.updateOne(
+        { _id: conversationId },
+        { $set: { 'lastMessage.seen': true } },
+      );
+      io.to(userSocketMap.get(userId)).emit('messagesSeen', { conversationId });
+    } catch (error) {
+      console.log(error);
+    }
+  });
+
+  socket.on('sendMessageById', async ({ conversationId, userId }) => {
+    try {
+      await Message.updateMany(
+        { conversationId: conversationId, seen: false },
+        { $set: { seen: true } },
+      );
+      await Conversation.updateOne(
+        { _id: conversationId },
+        { $set: { 'lastMessage.seen': true } },
+      );
+      io.to(userSocketMap.get(userId)).emit('messagesSeen', { conversationId });
+    } catch (error) {
+      console.log(error);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    userSocketMap.forEach((value, key) => {
+      if (value === socket.id) {
+        userSocketMap.delete(key);
+      }
+    });
+    io.emit('getOnlineUsers', Array.from(userSocketMap.keys()));
+  });
 });
 
-export { io, server, app };
+export { app, io, server };

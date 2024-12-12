@@ -107,7 +107,6 @@ export const handleImagesAndVideosCheckAndUpload = async (files) => {
 
     try {
         const uploadPromises = files.map(file => {
-            // Kiểm tra MIME Type để xác định đúng file
             if (file.mimetype.startsWith("image")) {
                 console.log(file.mimetype)
                 return cloudinary.uploader.upload(file.path)
